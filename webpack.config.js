@@ -3,6 +3,7 @@
 
 const path = require("path");
 const webpack = require("webpack");
+require("dotenv").config();
 
 /** @type {import('webpack').Configuration} */
 const config = {
@@ -34,10 +35,10 @@ const config = {
         ],
     },
     plugins: [
-        // follow-redirects cố import 'debug' (optional), bỏ qua để tránh warning
-        new webpack.IgnorePlugin({
-            resourceRegExp: /^debug$/,
-            contextRegExp: /follow-redirects/,
+        // Inject Google OAuth credentials from .env at build time
+        new webpack.DefinePlugin({
+            "process.env.GOOGLE_CLIENT_ID": JSON.stringify(process.env.GOOGLE_CLIENT_ID),
+            "process.env.GOOGLE_CLIENT_SECRET": JSON.stringify(process.env.GOOGLE_CLIENT_SECRET),
         }),
     ],
     devtool: "nosources-source-map",

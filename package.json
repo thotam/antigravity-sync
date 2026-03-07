@@ -1,8 +1,8 @@
 {
 	"name": "antigravity-sync",
 	"displayName": "Antigravity Sync",
-	"description": "Sync your Antigravity/VS Code/Cursor settings, extensions, and keybindings across devices using GitHub Gists",
-	"version": "0.1.0",
+	"description": "Sync your Antigravity settings, extensions, and keybindings across devices using Google Drive",
+	"version": "0.2.0",
 	"publisher": "thotam",
 	"icon": "images/icon.png",
 	"license": "MIT",
@@ -21,7 +21,7 @@
 		"settings",
 		"extensions",
 		"keybindings",
-		"gist",
+		"google-drive",
 		"profile",
 		"antigravity"
 	],
@@ -34,6 +34,16 @@
 			{
 				"command": "antigravitysync.showmenu",
 				"title": "Show Menu",
+				"category": "Antigravity Sync"
+			},
+			{
+				"command": "antigravitysync.login",
+				"title": "Login with Google",
+				"category": "Antigravity Sync"
+			},
+			{
+				"command": "antigravitysync.logout",
+				"title": "Logout",
 				"category": "Antigravity Sync"
 			},
 			{
@@ -66,7 +76,17 @@
 				"title": "Set Paths Manually",
 				"category": "Antigravity Sync"
 			}
-		]
+		],
+		"configuration": {
+			"title": "Antigravity Sync",
+			"properties": {
+				"antigravitysync.excludeExtensions": {
+					"type": "array",
+					"default": [],
+					"description": "Extension IDs to exclude from sync"
+				}
+			}
+		}
 	},
 	"scripts": {
 		"compile": "webpack",
@@ -77,13 +97,13 @@
 	"devDependencies": {
 		"@types/node": "20.x",
 		"@types/vscode": "^1.90.0",
+		"dotenv": "^17.3.1",
 		"ts-loader": "^9.5.1",
 		"typescript": "^5.8.3",
 		"webpack": "^5.99.6",
 		"webpack-cli": "^6.0.1"
 	},
 	"dependencies": {
-		"axios": "^1.9.0",
 		"json5": "^2.2.3"
 	}
 }

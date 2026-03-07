@@ -4,6 +4,7 @@ src/**
 out/**
 node_modules/**
 .gitignore
+.env*
 tsconfig.json
 webpack.config.js
 package-lock.json

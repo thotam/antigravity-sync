@@ -1,461 +1,404 @@
-// Entry point — Antigravity Sync Extension
-// Register commands, StatusBar, initialize controller & gist service
+// Entry point — Antigravity Sync Extension (Google Drive)
+// Commands, StatusBar, initialize controller & Google Drive service
 
-import * as vscode from 'vscode';
-import Logger from './core/logger';
-import { IProfile } from './models/interfaces';
-import SyncController from './core/sync-controller';
-import GistService from './core/gist';
+import * as vscode from "vscode";
+import Logger from "./core/logger";
+import GoogleAuth from "./core/google-auth";
+import GoogleDriveService from "./core/google-drive";
+import { IProfile } from "./models/interfaces";
+import SyncController from "./core/sync-controller";
 
 export let logger: Logger;
 let statusBarItem: vscode.StatusBarItem;
 
 export async function activate(ctx: vscode.ExtensionContext) {
-	try {
-		// Initialize Logger
-		logger = new Logger();
-		logger.info('Extension activation started');
+    try {
+        // Initialize Logger
+        logger = new Logger();
+        logger.info("Extension activation started");
 
-		// Initialize StatusBar
-		statusBarItem = vscode.window.createStatusBarItem(
-			vscode.StatusBarAlignment.Right,
-			100
-		);
-		statusBarItem.text = '$(sync) Antigravity Sync';
-		statusBarItem.tooltip = 'Antigravity Sync: Click to show menu';
-		statusBarItem.command = 'antigravitysync.showmenu';
-		statusBarItem.show();
+        // Only support Antigravity IDE
+        if (vscode.env.appName !== "Antigravity") {
+            vscode.window.showWarningMessage(
+                `Antigravity Sync is designed exclusively for Antigravity IDE. ` +
+                `You are currently using "${vscode.env.appName}". ` +
+                `Some features may not work correctly.`,
+                "Continue Anyway",
+                "Dismiss"
+            ).then((choice) => {
+                if (choice !== "Continue Anyway") {
+                    deactivate(true);
+                }
+            });
+            logger.warn(`Non-Antigravity IDE detected: ${vscode.env.appName}`);
+        }
 
-		// Initialize SyncController
-		const controller: SyncController | undefined =
-			await SyncController.initialize(logger, ctx);
-		if (!controller) {
-			logger.error('Failed to initialize Antigravity Sync', 'activate', true);
-			deactivate(true);
-			return;
-		}
+        // Initialize StatusBar
+        statusBarItem = vscode.window.createStatusBarItem(
+            vscode.StatusBarAlignment.Right,
+            100
+        );
+        statusBarItem.command = "antigravitysync.showmenu";
+        statusBarItem.show();
 
-		// Initialize GistService
-		const gistService: GistService | undefined = await GistService.initialize(
-			logger
-		);
-		if (!gistService) {
-			logger.error(
-				'Failed to create Gist Service. A valid GitHub connection is required.',
-				'activate',
-				true
-			);
-			deactivate(true);
-			return;
-		}
+        // Initialize SyncController
+        const controller = await SyncController.initialize(logger, ctx);
+        if (!controller) {
+            logger.error(
+                "Failed to initialize Antigravity Sync",
+                "activate",
+                true
+            );
+            deactivate(true);
+            return;
+        }
 
-		// Find or create Master Gist
-		let masterList = await gistService.getMaster();
-		if (!masterList) {
-			const defaultProfile = await controller.getActiveProfile();
-			defaultProfile.profileName = 'Origin';
-			masterList = await gistService.createMaster(defaultProfile as IProfile);
-			ctx.globalState.update('masterId', masterList.id);
-			gistService.masterId = masterList.id;
-		} else {
-			if (masterList.id !== ctx.globalState.get('masterId')) {
-				ctx.globalState.update('masterId', masterList.id);
-			}
-		}
+        // Initialize Google Auth
+        const auth = new GoogleAuth(logger, ctx);
 
-		// Validate master list
-		if (!ctx.globalState.get('masterId')) {
-			logger.error(
-				'Failed to find Master Gist ID. Check logs for more details.',
-				'activate',
-				true
-			);
-			deactivate(true);
-			return;
-		}
+        // Initialize Google Drive Service
+        const drive = new GoogleDriveService(auth, logger);
 
-		// ===== Register Commands =====
+        // Update StatusBar based on auth state
+        async function updateStatusBar() {
+            const authenticated = await auth.isAuthenticated();
+            if (authenticated) {
+                const info = await auth.getAccountInfo();
+                statusBarItem.text = `$(sync) ${info?.email || "Antigravity Sync"}`;
+                statusBarItem.tooltip = `Antigravity Sync: Logged in as ${info?.email || "Google"}`;
+            } else {
+                statusBarItem.text = "$(sync~spin) Antigravity Sync — Login Required";
+                statusBarItem.tooltip =
+                    "Click to login with Google";
+            }
+        }
+        await updateStatusBar();
 
-		const CreateProfile = vscode.commands.registerCommand(
-			'antigravitysync.createprofile',
-			async () => {
-				try {
-					const profileName = await vscode.window.showInputBox({
-						prompt: 'Enter profile name',
-						validateInput: (value) => {
-							if (!value || value.trim().length === 0) {
-								return 'Profile name cannot be empty';
-							}
-							if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
-								return 'Profile name can only contain letters, numbers, hyphens, and underscores';
-							}
-							return null;
-						},
-					});
+        // ===== Commands =====
 
-					if (!profileName) {
-						return;
-					}
+        const Login = vscode.commands.registerCommand(
+            "antigravitysync.login",
+            async () => {
+                try {
+                    await auth.login();
+                    await updateStatusBar();
+                } catch (error: any) {
+                    logger.error(
+                        `Login failed: ${error?.message}`,
+                        "Login",
+                        true,
+                        error
+                    );
+                }
+            }
+        );
 
-					await vscode.window.withProgress(
-						{
-							location: vscode.ProgressLocation.Notification,
-							title: `Creating profile "${profileName}"...`,
-							cancellable: false,
-						},
-						async (progress) => {
-							progress.report({
-								message: 'Reading current configuration...',
-							});
+        const Logout = vscode.commands.registerCommand(
+            "antigravitysync.logout",
+            async () => {
+                const confirm = await vscode.window.showWarningMessage(
+                    "Are you sure you want to logout from Google?",
+                    "Yes",
+                    "Cancel"
+                );
+                if (confirm === "Yes") {
+                    await auth.logout();
+                    await updateStatusBar();
+                }
+            }
+        );
 
-							const currentProfile = await controller.getActiveProfile();
-							const profile: IProfile = {
-								profileName,
-								settings: currentProfile.settings!,
-								extensions: currentProfile.extensions!,
-								keybindings: currentProfile.keybindings!,
-							};
+        const CreateProfile = vscode.commands.registerCommand(
+            "antigravitysync.createprofile",
+            async () => {
+                if (!(await ensureAuth(auth))) { return; }
+                try {
+                    const profileName = await vscode.window.showInputBox({
+                        prompt: "Enter profile name",
+                        validateInput: (value) => {
+                            if (!value || value.trim().length === 0) {
+                                return "Profile name cannot be empty";
+                            }
+                            if (!/^[a-zA-Z0-9_-]+$/.test(value)) {
+                                return "Only letters, numbers, hyphens, and underscores";
+                            }
+                            return null;
+                        },
+                    });
+                    if (!profileName) { return; }
 
-							progress.report({
-								message: 'Uploading to GitHub...',
-							});
-							await gistService.createProfile(profile);
+                    await vscode.window.withProgress(
+                        {
+                            location: vscode.ProgressLocation.Notification,
+                            title: `Creating profile "${profileName}"...`,
+                            cancellable: false,
+                        },
+                        async (progress) => {
+                            progress.report({ message: "Reading current config..." });
+                            const current = await controller.getActiveProfile();
+                            const profile: IProfile = {
+                                profileName,
+                                settings: current.settings!,
+                                extensions: current.extensions!,
+                                keybindings: current.keybindings!,
+                            };
 
-							logger.info(
-								`Created profile: ${profileName}`,
-								false,
-								'CreateProfile'
-							);
-							vscode.window.showInformationMessage(
-								`Profile "${profileName}" created successfully!`
-							);
-						}
-					);
-				} catch (error) {
-					logger.error(`Failed to create profile`, 'CreateProfile', true, error);
-				}
-			}
-		);
+                            progress.report({ message: "Uploading to Google Drive..." });
+                            await drive.saveProfile(profile);
 
-		const PullProfile = vscode.commands.registerCommand(
-			'antigravitysync.pullprofile',
-			async () => {
-				try {
-					const masterGist = await gistService.getMaster();
-					if (!masterGist) {
-						vscode.window.showErrorMessage('No master gist found');
-						return;
-					}
+                            vscode.window.showInformationMessage(
+                                `Profile "${profileName}" created successfully!`
+                            );
+                        }
+                    );
+                } catch (error) {
+                    logger.error("Failed to create profile", "CreateProfile", true, error);
+                }
+            }
+        );
 
-					const profileNames = Object.keys(masterGist.files).filter((name) =>
-						name.endsWith('.json')
-					);
+        const PullProfile = vscode.commands.registerCommand(
+            "antigravitysync.pullprofile",
+            async () => {
+                if (!(await ensureAuth(auth))) { return; }
+                try {
+                    const files = await drive.listProfiles();
+                    if (files.length === 0) {
+                        vscode.window.showInformationMessage("No profiles found");
+                        return;
+                    }
 
-					if (profileNames.length === 0) {
-						vscode.window.showInformationMessage('No profiles found');
-						return;
-					}
+                    const selected = await vscode.window.showQuickPick(
+                        files.map((f) => ({
+                            label: f.name.replace(".json", ""),
+                            description: f.modifiedTime
+                                ? `Last modified: ${new Date(f.modifiedTime).toLocaleString()}`
+                                : "",
+                            fileName: f.name,
+                        })),
+                        { placeHolder: "Select a profile to pull" }
+                    );
+                    if (!selected) { return; }
 
-					const selectedProfile = await vscode.window.showQuickPick(
-						profileNames.map((name) => ({
-							label: name.replace('.json', ''),
-							description: `Profile: ${name.replace('.json', '')}`,
-						})),
-						{ placeHolder: 'Select a profile to pull' }
-					);
+                    await vscode.window.withProgress(
+                        {
+                            location: vscode.ProgressLocation.Notification,
+                            title: `Pulling profile "${selected.label}"...`,
+                            cancellable: false,
+                        },
+                        async (progress) => {
+                            progress.report({ message: "Downloading from Google Drive..." });
+                            const profile = await drive.getProfile(selected.fileName);
+                            if (!profile) {
+                                throw new Error("Profile data is empty");
+                            }
 
-					if (!selectedProfile) {
-						return;
-					}
+                            progress.report({ message: "Applying locally..." });
+                            await controller.updateLocalProfile(profile);
+                        }
+                    );
 
-					await vscode.window.withProgress(
-						{
-							location: vscode.ProgressLocation.Notification,
-							title: `Pulling profile "${selectedProfile.label}"...`,
-							cancellable: false,
-						},
-						async (progress) => {
-							progress.report({
-								message: 'Fetching remote profile data...',
-								increment: 25,
-							});
-							const profileFile = masterGist.files[`${selectedProfile.label}.json`];
-							const profile = await gistService.getProfile(profileFile.raw_url);
+                    const reload = await vscode.window.showInformationMessage(
+                        `Profile "${selected.label}" applied! Reload to see all changes?`,
+                        "Reload Now",
+                        "Later"
+                    );
+                    if (reload === "Reload Now") {
+                        await vscode.commands.executeCommand(
+                            "workbench.action.reloadWindow"
+                        );
+                    }
+                } catch (error) {
+                    logger.error("Failed to pull profile", "PullProfile", true, error);
+                }
+            }
+        );
 
-							progress.report({
-								message: 'Applying profile locally...',
-								increment: 50,
-							});
+        const UpdateProfile = vscode.commands.registerCommand(
+            "antigravitysync.updateprofile",
+            async () => {
+                if (!(await ensureAuth(auth))) { return; }
+                try {
+                    const files = await drive.listProfiles();
+                    if (files.length === 0) {
+                        vscode.window.showInformationMessage("No profiles found to update");
+                        return;
+                    }
 
-							await controller.updateLocalProfile(profile);
+                    const selected = await vscode.window.showQuickPick(
+                        files.map((f) => ({
+                            label: f.name.replace(".json", ""),
+                            fileName: f.name,
+                        })),
+                        { placeHolder: "Select a profile to update" }
+                    );
+                    if (!selected) { return; }
 
-							progress.report({
-								message: 'Complete!',
-								increment: 100,
-							});
-						}
-					);
+                    await vscode.window.withProgress(
+                        {
+                            location: vscode.ProgressLocation.Notification,
+                            title: `Updating profile "${selected.label}"...`,
+                            cancellable: false,
+                        },
+                        async (progress) => {
+                            progress.report({ message: "Reading current config..." });
+                            const current = await controller.getActiveProfile();
+                            const profile: IProfile = {
+                                profileName: selected.label,
+                                settings: current.settings!,
+                                extensions: current.extensions!,
+                                keybindings: current.keybindings!,
+                            };
 
-					logger.info(
-						`Pulled profile: ${selectedProfile.label}`,
-						false,
-						'PullProfile'
-					);
-					const reload = await vscode.window.showInformationMessage(
-						`Profile "${selectedProfile.label}" applied successfully! Reload window to see all changes?`,
-						'Reload Now',
-						'Later'
-					);
+                            progress.report({ message: "Uploading to Google Drive..." });
+                            await drive.saveProfile(profile);
 
-					if (reload === 'Reload Now') {
-						await vscode.commands.executeCommand('workbench.action.reloadWindow');
-					}
-				} catch (error) {
-					logger.error(`Failed to pull profile`, 'PullProfile', true, error);
-				}
-			}
-		);
+                            vscode.window.showInformationMessage(
+                                `Profile "${selected.label}" updated successfully!`
+                            );
+                        }
+                    );
+                } catch (error) {
+                    logger.error("Failed to update profile", "UpdateProfile", true, error);
+                }
+            }
+        );
 
-		const UpdateProfile = vscode.commands.registerCommand(
-			'antigravitysync.updateprofile',
-			async () => {
-				try {
-					const masterGist = await gistService.getMaster();
-					if (!masterGist) {
-						vscode.window.showErrorMessage('No master gist found');
-						return;
-					}
+        const DeleteProfile = vscode.commands.registerCommand(
+            "antigravitysync.deleteprofile",
+            async () => {
+                if (!(await ensureAuth(auth))) { return; }
+                try {
+                    const files = await drive.listProfiles();
+                    if (files.length === 0) {
+                        vscode.window.showInformationMessage("No profiles found to delete");
+                        return;
+                    }
 
-					const profileNames = Object.keys(masterGist.files).filter((name) =>
-						name.endsWith('.json')
-					);
+                    const selected = await vscode.window.showQuickPick(
+                        files.map((f) => ({
+                            label: f.name.replace(".json", ""),
+                            fileName: f.name,
+                        })),
+                        { placeHolder: "Select a profile to delete" }
+                    );
+                    if (!selected) { return; }
 
-					if (profileNames.length === 0) {
-						vscode.window.showInformationMessage('No profiles found to update');
-						return;
-					}
+                    const confirm = await vscode.window.showWarningMessage(
+                        `Delete profile "${selected.label}"?`,
+                        { modal: true },
+                        "Delete",
+                        "Cancel"
+                    );
+                    if (confirm !== "Delete") { return; }
 
-					const selectedProfile = await vscode.window.showQuickPick(
-						profileNames.map((name) => ({
-							label: name.replace('.json', ''),
-							description: `Update profile: ${name.replace('.json', '')}`,
-						})),
-						{ placeHolder: 'Select a profile to update' }
-					);
+                    await drive.deleteProfile(selected.label);
+                    vscode.window.showInformationMessage(
+                        `Profile "${selected.label}" deleted.`
+                    );
+                } catch (error) {
+                    logger.error("Failed to delete profile", "DeleteProfile", true, error);
+                }
+            }
+        );
 
-					if (!selectedProfile) {
-						return;
-					}
+        const ShowMenu = vscode.commands.registerCommand(
+            "antigravitysync.showmenu",
+            async () => {
+                const isAuth = await auth.isAuthenticated();
+                const options = isAuth
+                    ? [
+                          { label: "$(plus) Create Profile", command: "antigravitysync.createprofile" },
+                          { label: "$(cloud-download) Pull Profile", command: "antigravitysync.pullprofile" },
+                          { label: "$(sync) Update Profile", command: "antigravitysync.updateprofile" },
+                          { label: "$(trash) Delete Profile", command: "antigravitysync.deleteprofile" },
+                          { label: "$(output) Show Logs", command: "antigravitysync.showlogs" },
+                          { label: "$(file-symlink-directory) Set Paths Manually", command: "antigravitysync.setpathsmanually" },
+                          { label: "$(sign-out) Logout", command: "antigravitysync.logout" },
+                      ]
+                    : [
+                          { label: "$(sign-in) Login with Google", command: "antigravitysync.login" },
+                          { label: "$(output) Show Logs", command: "antigravitysync.showlogs" },
+                      ];
 
-					await vscode.window.withProgress(
-						{
-							location: vscode.ProgressLocation.Notification,
-							title: `Updating profile "${selectedProfile.label}"...`,
-							cancellable: false,
-						},
-						async (progress) => {
-							progress.report({
-								message: 'Reading current configuration...',
-							});
+                const selected = await vscode.window.showQuickPick(options, {
+                    placeHolder: isAuth ? "Choose an action" : "Login to get started",
+                });
+                if (selected) {
+                    await vscode.commands.executeCommand(selected.command);
+                }
+            }
+        );
 
-							const currentProfile = await controller.getActiveProfile();
-							const updatedProfile: IProfile = {
-								profileName: selectedProfile.label,
-								settings: currentProfile.settings!,
-								extensions: currentProfile.extensions!,
-								keybindings: currentProfile.keybindings!,
-							};
+        const SetManualPath = vscode.commands.registerCommand(
+            "antigravitysync.setpathsmanually",
+            async () => {
+                const options = [
+                    { label: "$(settings) Set Settings Path", type: "settings" as const },
+                    { label: "$(keyboard) Set Keybindings Path", type: "keybindings" as const },
+                ];
+                const selected = await vscode.window.showQuickPick(options, {
+                    placeHolder: "Choose configuration file to set",
+                });
+                if (selected) {
+                    try {
+                        const path = await SyncController.setManualPath(selected.type);
+                        ctx.globalState.update(`${selected.type}Path`, path);
+                        vscode.window.showInformationMessage(
+                            `${selected.type} path updated!`
+                        );
+                    } catch (error) {
+                        logger.error(
+                            `Failed to set ${selected.type} path`,
+                            "SetManualPath",
+                            true,
+                            error
+                        );
+                    }
+                }
+            }
+        );
 
-							progress.report({
-								message: 'Uploading to GitHub...',
-							});
-							await gistService.createProfile(updatedProfile);
+        const ShowLogs = vscode.commands.registerCommand(
+            "antigravitysync.showlogs",
+            () => { logger.show(); }
+        );
 
-							logger.info(
-								`Updated profile: ${selectedProfile.label}`,
-								false,
-								'UpdateProfile'
-							);
-							vscode.window.showInformationMessage(
-								`Profile "${selectedProfile.label}" updated successfully!`
-							);
-						}
-					);
-				} catch (error) {
-					logger.error(`Failed to update profile`, 'UpdateProfile', true, error);
-				}
-			}
-		);
+        // Register all commands
+        ctx.subscriptions.push(
+            Login, Logout,
+            CreateProfile, PullProfile, UpdateProfile, DeleteProfile,
+            ShowMenu, SetManualPath, ShowLogs,
+            statusBarItem, logger
+        );
 
-		const DeleteProfile = vscode.commands.registerCommand(
-			'antigravitysync.deleteprofile',
-			async () => {
-				try {
-					const masterGist = await gistService.getMaster();
-					if (!masterGist) {
-						vscode.window.showErrorMessage('No master gist found');
-						return;
-					}
+        logger.info("Extension activated successfully", false, "activate");
+    } catch (error) {
+        logger.error(`${error}`, "activate", false, error);
+    }
+}
 
-					const profileNames = Object.keys(masterGist.files).filter((name) =>
-						name.endsWith('.json')
-					);
-
-					if (profileNames.length === 0) {
-						vscode.window.showInformationMessage('No profiles found to delete');
-						return;
-					}
-
-					const selectedProfile = await vscode.window.showQuickPick(
-						profileNames.map((name) => ({
-							label: name.replace('.json', ''),
-							description: `Delete profile: ${name.replace('.json', '')}`,
-						})),
-						{ placeHolder: 'Select a profile to delete' }
-					);
-
-					if (!selectedProfile) {
-						return;
-					}
-
-					await vscode.window.withProgress(
-						{
-							location: vscode.ProgressLocation.Notification,
-							title: `Deleting profile "${selectedProfile.label}"...`,
-							cancellable: false,
-						},
-						async (progress) => {
-							await gistService.deleteProfile(selectedProfile.label);
-							logger.info(
-								`Deleted profile: ${selectedProfile.label}`,
-								false,
-								'DeleteProfile'
-							);
-							vscode.window.showInformationMessage(
-								`Profile "${selectedProfile.label}" deleted successfully!`
-							);
-						}
-					);
-				} catch (error) {
-					logger.error(`Failed to delete profile`, 'DeleteProfile', true, error);
-				}
-			}
-		);
-
-		const ShowMenu = vscode.commands.registerCommand(
-			'antigravitysync.showmenu',
-			async () => {
-				const options = [
-					{
-						label: '$(plus) Create Profile',
-						command: 'antigravitysync.createprofile',
-					},
-					{
-						label: '$(cloud-download) Pull Profile',
-						command: 'antigravitysync.pullprofile',
-					},
-					{
-						label: '$(sync) Update Profile',
-						command: 'antigravitysync.updateprofile',
-					},
-					{
-						label: '$(trash) Delete Profile',
-						command: 'antigravitysync.deleteprofile',
-					},
-					{
-						label: '$(output) Show Logs',
-						command: 'antigravitysync.showlogs',
-					},
-					{
-						label: '$(file-symlink-directory) Set Paths Manually',
-						command: 'antigravitysync.setpathsmanually',
-					},
-				];
-
-				const selected = await vscode.window.showQuickPick(options, {
-					placeHolder: 'Choose an action',
-				});
-				if (selected) {
-					await vscode.commands.executeCommand(selected.command);
-				}
-			}
-		);
-
-		const SetManualPath = vscode.commands.registerCommand(
-			'antigravitysync.setpathsmanually',
-			async () => {
-				const options = [
-					{
-						label: '$(settings) Set Settings Path',
-						type: 'settings' as const,
-					},
-					{
-						label: '$(keyboard) Set Keybindings Path',
-						type: 'keybindings' as const,
-					},
-				];
-
-				const selected = await vscode.window.showQuickPick(options, {
-					placeHolder: 'Choose configuration file to set',
-				});
-
-				if (selected) {
-					try {
-						const path = await SyncController.setManualPath(
-							selected.type,
-							`Select ${selected.type}.json file`
-						);
-						ctx.globalState.update(`${selected.type}Path`, path);
-						logger.info(
-							`${selected.type} path updated to: ${path}`,
-							false,
-							'SetManualPath'
-						);
-						vscode.window.showInformationMessage(
-							`${selected.type} path updated successfully!`
-						);
-					} catch (error) {
-						logger.error(
-							`Failed to set ${selected?.type} path`,
-							'SetManualPath',
-							true,
-							error
-						);
-					}
-				}
-			}
-		);
-
-		const ShowLogs = vscode.commands.registerCommand(
-			'antigravitysync.showlogs',
-			() => {
-				logger.show();
-			}
-		);
-
-		// Register all commands
-		ctx.subscriptions.push(
-			CreateProfile,
-			PullProfile,
-			UpdateProfile,
-			DeleteProfile,
-			SetManualPath,
-			ShowMenu,
-			ShowLogs,
-			statusBarItem,
-			logger
-		);
-
-		logger.info('Extension activation completed successfully', false, 'activate');
-	} catch (error) {
-		logger.error(`${error}`, 'activate', false, error);
-	}
+/** Helper — ensure user is logged in before action */
+async function ensureAuth(auth: GoogleAuth): Promise<boolean> {
+    if (await auth.isAuthenticated()) {
+        return true;
+    }
+    const action = await vscode.window.showWarningMessage(
+        "Please login with Google to use Antigravity Sync.",
+        "Login Now",
+        "Cancel"
+    );
+    if (action === "Login Now") {
+        await vscode.commands.executeCommand("antigravitysync.login");
+        return auth.isAuthenticated();
+    }
+    return false;
 }
 
 export function deactivate(preserveLogger: boolean = false) {
-	logger?.info('Extension deactivated');
-	statusBarItem?.dispose();
-	if (!preserveLogger) {
-		logger?.dispose();
-	}
+    logger?.info("Extension deactivated");
+    statusBarItem?.dispose();
+    if (!preserveLogger) {
+        logger?.dispose();
+    }
 }
