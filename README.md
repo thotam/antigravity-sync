@@ -6,7 +6,7 @@
 
 Sync your **Antigravity** settings, extensions, and keybindings across devices using **Google Drive**.
 
-> **Note**: This extension is designed exclusively for [Antigravity IDE](https://www.antigravity.dev/). A warning will be shown if used on other editors.
+> **Note**: This extension is designed exclusively for [Antigravity IDE](https://www.antigravity.google/). A warning will be shown if used on other editors.
 
 ## Features
 
@@ -18,18 +18,20 @@ Sync your **Antigravity** settings, extensions, and keybindings across devices u
 
 ### What Gets Synced
 
-| Item | Synced |
-|------|--------|
-| Settings (`settings.json`) | ✅ |
-| Keybindings (`keybindings.json`) | ✅ |
-| Extensions | ✅ |
+| Item                             | Synced |
+| -------------------------------- | ------ |
+| Settings (`settings.json`)       | ✅     |
+| Keybindings (`keybindings.json`) | ✅     |
+| Extensions                       | ✅     |
 
 ## Installation
 
 ### From Open VSX Registry
+
 Search for **"Antigravity Sync"** in the Extensions panel, or install directly from [open-vsx.org](https://open-vsx.org/extension/thotam/antigravity-sync).
 
 ### From VSIX
+
 1. Download the `.vsix` file from [Releases](https://github.com/thotam/antigravity-sync/releases)
 2. Open Antigravity → Extensions → `...` → **Install from VSIX**
 
@@ -41,26 +43,29 @@ Search for **"Antigravity Sync"** in the Extensions panel, or install directly f
 ## Usage
 
 ### First Time Setup
+
 1. Install the extension
 2. Click the **StatusBar** button → **Login with Google**
 3. Authorize in browser → you're done!
 
 ### Commands
+
 Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and type **"Antigravity Sync"**:
 
-| Command | Description |
-|---------|-------------|
-| **Show Menu** | Open the quick action menu |
-| **Login with Google** | Authenticate with Google |
-| **Logout** | Remove stored credentials |
-| **Create Profile** | Save current config as a new profile |
-| **Pull Profile** | Download and apply a profile |
-| **Update Profile** | Update an existing profile with current config |
-| **Delete Profile** | Remove a profile from Google Drive |
-| **Show Logs** | View extension logs |
-| **Set Paths Manually** | Manually set config file paths |
+| Command                | Description                                    |
+| ---------------------- | ---------------------------------------------- |
+| **Show Menu**          | Open the quick action menu                     |
+| **Login with Google**  | Authenticate with Google                       |
+| **Logout**             | Remove stored credentials                      |
+| **Create Profile**     | Save current config as a new profile           |
+| **Pull Profile**       | Download and apply a profile                   |
+| **Update Profile**     | Update an existing profile with current config |
+| **Delete Profile**     | Remove a profile from Google Drive             |
+| **Show Logs**          | View extension logs                            |
+| **Set Paths Manually** | Manually set config file paths                 |
 
 ### Status Bar
+
 Click the `$(sync) Antigravity Sync` button in the status bar to quickly access the menu.
 
 ## How It Works
@@ -71,9 +76,9 @@ Click the `$(sync) Antigravity Sync` button in the status bar to quickly access 
 
 ## Configuration
 
-| Setting | Default | Description |
-|---------|---------|-------------|
-| `antigravitysync.excludeExtensions` | `[]` | Extension IDs to exclude from sync |
+| Setting                             | Default | Description                        |
+| ----------------------------------- | ------- | ---------------------------------- |
+| `antigravitysync.excludeExtensions` | `[]`    | Extension IDs to exclude from sync |
 
 ## Important Notes
 
@@ -86,11 +91,13 @@ Click the `$(sync) Antigravity Sync` button in the status bar to quickly access 
 ## Development
 
 ### Prerequisites
+
 - Node.js 20+
-- [Antigravity IDE](https://www.antigravity.dev/) (for testing)
+- [Antigravity IDE](https://www.antigravity.google/) (for testing)
 - Google OAuth Client ID ([Google Cloud Console](https://console.cloud.google.com/apis/credentials) → **Desktop app** type)
 
 ### Setup
+
 ```bash
 git clone https://github.com/thotam/antigravity-sync.git
 cd antigravity-sync
@@ -99,6 +106,7 @@ cp .env.example .env   # Fill in your Google OAuth credentials
 ```
 
 ### Run Locally (Development)
+
 ```bash
 npm run compile                # Build once (development mode)
 npm run watch                  # Build & watch for changes
@@ -106,23 +114,28 @@ antigravity --extensionDevelopmentPath="$(pwd)"  # Launch Antigravity with exten
 ```
 
 ### Build Production
+
 ```bash
 npm run package                # Webpack production build
 ```
 
 ### Package VSIX
+
 ```bash
 npx -y @vscode/vsce package --allow-missing-repository
 # Output: antigravity-sync-x.x.x.vsix
 ```
 
 ### Publish to Open VSX
+
 ```bash
 npx -y ovsx publish antigravity-sync-x.x.x.vsix -p <YOUR_OPENVSX_TOKEN>
 ```
+
 Get token from: [open-vsx.org/user-settings/tokens](https://open-vsx.org/user-settings/tokens)
 
 ### Create GitHub Release
+
 1. Go to [Releases → New release](https://github.com/thotam/antigravity-sync/releases/new)
 2. Create tag: `vX.X.X`
 3. Title: `vX.X.X — Description`
@@ -130,6 +143,7 @@ Get token from: [open-vsx.org/user-settings/tokens](https://open-vsx.org/user-se
 5. Copy changelog entries as release notes
 
 ### Project Structure
+
 ```
 src/
 ├── extension.ts           # Entry point, commands, StatusBar
@@ -145,6 +159,7 @@ src/
 ## Release Notes
 
 ### 0.2.0 (2026-03-08)
+
 - 🔄 **Switched to Google Drive** — replaced GitHub Gists with Google Drive appDataFolder
 - 🔒 **Google OAuth 2.0** — secure login via browser, tokens encrypted by OS
 - 🔐 **Build-time credentials** — OAuth secrets injected via `.env` + DefinePlugin
@@ -152,6 +167,7 @@ src/
 - 🗑️ **Removed GitHub dependency** — no longer requires GitHub account or token
 
 ### 0.1.0 (2026-03-08)
+
 - 🎉 Initial release with GitHub Gist storage
 
 ## Contributing
