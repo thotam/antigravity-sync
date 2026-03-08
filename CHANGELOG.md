@@ -1,5 +1,25 @@
 # Changelog
 
+## [0.6.0] - 2026-03-08
+
+### Added
+- **Snippets Sync** — Sync user snippets (`User/snippets/`) across devices, bundled as base64-encoded content in `snippets.json`
+- **Orphaned Panel Cleanup** — Dashboard automatically closes when extension restarts, preventing non-functional UI
+
+### Changed
+- **Base64 Config Storage** — Settings and keybindings now stored as raw base64 instead of parsed JSON, preserving comments, whitespace, and JSON5 syntax
+- Refactored `getConfigPaths()` to accept relative paths (files or directories) for reuse across config types
+
+### Fixed
+- Comments in `settings.json` and `keybindings.json` are now **preserved** during sync (previously lost due to JSON5 → JSON conversion)
+
+### Removed
+- `json5` dependency (no longer needed with base64 storage)
+- Unused `ISettings` and `IKeybinds` interfaces
+
+### Breaking Changes
+- ⚠️ **Profiles created in v0.5.0 or earlier are incompatible** — Settings/keybindings format changed from parsed JSON to base64. Please delete old profiles and recreate them
+
 ## [0.5.0] - 2026-03-08
 
 ### Added

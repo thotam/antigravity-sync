@@ -1,9 +1,9 @@
 // SyncController — Read/write Antigravity config files
 // Simplified: only supports Antigravity
 
-import { readFile } from "fs/promises";
+import { readFile, readdir, mkdir, writeFile } from "fs/promises";
 import * as os from "os";
-import JSON5 from "json5";
+import * as path from "path";
 import {
     Extension,
     ExtensionContext,
@@ -13,7 +13,7 @@ import {
     window,
     workspace,
 } from "vscode";
-import { IKeybinds, IProfile, ISettings, ISyncItem } from "../models/interfaces";
+import { IProfile, ISyncItem } from "../models/interfaces";
 import Logger from "./logger";
 
 export default class SyncController {
@@ -77,25 +77,25 @@ export default class SyncController {
         return null;
     }
 
-    /** Return possible config paths with fallbacks based on platform */
-    private static getConfigPaths(file: string): string[] {
+    /** Return possible config paths for a relative path (file or directory) */
+    private static getConfigPaths(relativePath: string): string[] {
         const appName = "Antigravity";
         switch (os.platform()) {
             case "win32":
                 return [
-                    `${process.env.APPDATA}\\${appName}\\User\\${file}`,
-                    `${process.env.USERPROFILE}\\AppData\\Roaming\\${appName}\\User\\${file}`,
+                    `${process.env.APPDATA}\\${appName}\\User\\${relativePath}`,
+                    `${process.env.USERPROFILE}\\AppData\\Roaming\\${appName}\\User\\${relativePath}`,
                 ];
             case "darwin":
                 return [
-                    `${process.env.HOME}/Library/Application Support/${appName}/User/${file}`,
-                    `${os.homedir()}/Library/Application Support/${appName}/User/${file}`,
+                    `${process.env.HOME}/Library/Application Support/${appName}/User/${relativePath}`,
+                    `${os.homedir()}/Library/Application Support/${appName}/User/${relativePath}`,
                 ];
             default:
                 return [
-                    `${process.env.HOME}/.config/${appName}/User/${file}`,
-                    `${process.env.XDG_CONFIG_HOME || `${os.homedir()}/.config`}/${appName}/User/${file}`,
-                    `${os.homedir()}/.config/${appName}/User/${file}`,
+                    `${process.env.HOME}/.config/${appName}/User/${relativePath}`,
+                    `${process.env.XDG_CONFIG_HOME || `${os.homedir()}/.config`}/${appName}/User/${relativePath}`,
+                    `${os.homedir()}/.config/${appName}/User/${relativePath}`,
                 ];
         }
     }
@@ -122,16 +122,18 @@ export default class SyncController {
         for (const item of syncItems.filter(i => i.enabled)) {
             switch (item.key) {
                 case "settings":
-                    data.settings = (await this.readConfigFile<ISettings>("settings")) ?? {};
+                    data.settings = await this.readConfigRaw("settings");
                     break;
                 case "keybindings":
-                    data.keybindings = (await this.readConfigFile<IKeybinds[]>("keybindings")) ?? [];
+                    data.keybindings = await this.readConfigRaw("keybindings");
                     break;
                 case "extensions":
                     data.extensions = this.getExtensions();
                     break;
+                case "snippets":
+                    data.snippets = await this.readSnippets();
+                    break;
                 default:
-                    // Các data type mới sẽ thêm case ở đây
                     break;
             }
         }
@@ -146,14 +148,20 @@ export default class SyncController {
                 case "settings": {
                     const settingsPath: string = this.context.globalState.get("settingsPath")!;
                     if (profile.data.settings) {
-                        await this.writeConfigFile(settingsPath, profile.data.settings);
+                        await this.writeConfigRaw(settingsPath, profile.data.settings);
                     }
                     break;
                 }
                 case "keybindings": {
                     const keybindingsPath: string = this.context.globalState.get("keybindingsPath")!;
                     if (profile.data.keybindings) {
-                        await this.writeConfigFile(keybindingsPath, profile.data.keybindings);
+                        await this.writeConfigRaw(keybindingsPath, profile.data.keybindings);
+                    }
+                    break;
+                }
+                case "snippets": {
+                    if (profile.data.snippets) {
+                        await this.writeSnippets(profile.data.snippets);
                     }
                     break;
                 }
@@ -164,52 +172,34 @@ export default class SyncController {
         }
     }
 
-    /** Read config file (JSON5 — supports comments) */
-    private async readConfigFile<T>(
-        t: "keybindings" | "settings"
-    ): Promise<T | undefined> {
-        let path: string;
+    /** Read config file as base64 — preserves comments/whitespace */
+    private async readConfigRaw(t: "keybindings" | "settings"): Promise<string | undefined> {
+        let filePath: string;
         try {
-            path = this.context.globalState.get(`${t}Path`)!;
+            filePath = this.context.globalState.get(`${t}Path`)!;
         } catch {
-            this.logger.error(
-                `${t} path has not been set`,
-                "SyncController.readConfigFile",
-                true
-            );
+            this.logger.error(`${t} path has not been set`, "SyncController.readConfigRaw", true);
             return undefined;
         }
         try {
-            const buffer = await readFile(path, "utf-8");
-            return JSON5.parse(buffer) as T;
+            const buffer = await readFile(filePath);
+            return buffer.toString("base64");
         } catch (error) {
-            this.logger.error(
-                `Failed to read ${t} file: ${path}`,
-                "SyncController.readConfigFile",
-                true,
-                error
-            );
+            this.logger.error(`Failed to read ${t} file: ${filePath}`, "SyncController.readConfigRaw", true, error);
             return undefined;
         }
     }
 
-    /** Write config file */
-    private async writeConfigFile(path: string, data: string | any) {
+    /** Write base64-encoded config file back to disk */
+    private async writeConfigRaw(filePath: string, base64Content: string): Promise<void> {
         try {
-            const content =
-                typeof data === "string" ? data : JSON.stringify(data, null, 2);
             await workspace.fs.writeFile(
-                Uri.file(path),
-                Buffer.from(content, "utf8")
+                Uri.file(filePath),
+                Buffer.from(base64Content, "base64")
             );
-            this.logger.info(`Configuration file updated: ${path}`);
+            this.logger.info(`Configuration file updated: ${filePath}`);
         } catch (error) {
-            this.logger.error(
-                `Failed to write config file: ${path}`,
-                "SyncController.writeConfigFile",
-                true,
-                error
-            );
+            this.logger.error(`Failed to write config file: ${filePath}`, "SyncController.writeConfigRaw", true, error);
             throw error;
         }
     }
@@ -224,6 +214,57 @@ export default class SyncController {
             .filter((ext: Extension<any>) => !ext.packageJSON.isBuiltin)
             .map((ext: Extension<any>) => ext.id)
             .filter((id) => !excludeList.includes(id));
+    }
+
+    // ===== Snippets helpers =====
+
+    /** Try multiple possible paths to find a config directory */
+    private static async findConfigDir(dir: string, logger: Logger): Promise<string | null> {
+        const candidates = SyncController.getConfigPaths(dir);
+        for (const p of candidates) {
+            try {
+                await workspace.fs.stat(Uri.file(p));
+                return p;
+            } catch {
+                logger.info(`Not found: ${p}`);
+            }
+        }
+        return null;
+    }
+
+    /** Read all snippet files → bundled object { fileName: base64content } */
+    private async readSnippets(): Promise<Record<string, string>> {
+        const dir = await SyncController.findConfigDir("snippets", this.logger);
+        const bundle: Record<string, string> = {};
+        if (!dir) { return bundle; }
+        try {
+            const entries = await readdir(dir);
+            for (const entry of entries) {
+                if (entry.endsWith(".json") || entry.endsWith(".code-snippets")) {
+                    const filePath = path.join(dir, entry);
+                    const raw = await readFile(filePath);
+                    bundle[entry] = raw.toString("base64");
+                }
+            }
+        } catch {
+            // Directory doesn't exist or is empty
+        }
+        return bundle;
+    }
+
+    /** Write bundled snippets back to individual files */
+    private async writeSnippets(bundle: Record<string, string>): Promise<void> {
+        let dir = await SyncController.findConfigDir("snippets", this.logger);
+        if (!dir) {
+            // Fallback: create at first candidate path
+            dir = SyncController.getConfigPaths("snippets")[0];
+        }
+        await mkdir(dir, { recursive: true });
+        for (const [fileName, base64Content] of Object.entries(bundle)) {
+            const filePath = path.join(dir, fileName);
+            await writeFile(filePath, Buffer.from(base64Content, "base64"));
+        }
+        this.logger.info(`Snippets synced: ${Object.keys(bundle).length} file(s)`);
     }
 
     /** Compare local vs remote extensions — trả về diff để provider confirm */

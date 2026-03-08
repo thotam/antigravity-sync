@@ -4,7 +4,7 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE.md)
 [![GitHub](https://img.shields.io/badge/GitHub-thotam%2Fantigravity--sync-blue)](https://github.com/thotam/antigravity-sync)
 
-Sync your **Antigravity** settings, extensions, and keybindings across devices using **Google Drive**.
+Sync your **Antigravity** settings, extensions, keybindings, and snippets across devices using **Google Drive**.
 
 > **Note**: This extension is designed exclusively for [Antigravity IDE](https://www.antigravity.google/). A warning will be shown if used on other editors.
 
@@ -12,7 +12,7 @@ Sync your **Antigravity** settings, extensions, and keybindings across devices u
 
 - **Full Dashboard UI** — Modern webview panel with account info, profile management, and quick actions
 - **Folder-based Profiles** — Each profile stored as a dedicated folder with separate config files for easy extensibility
-- **Sync Item Selection** — Choose which items to sync (Settings, Extensions, Keybindings) per operation with checkbox modals
+- **Sync Item Selection** — Choose which items to sync (Settings, Extensions, Keybindings, Snippets) per operation with checkbox modals
 - **Sync Progress Modal** — Real-time step-by-step progress with animated progress bar during sync operations
 - **Extension Sync Confirm** — In-webview modal showing extensions to install/remove before applying
 - **Progressive Loading** — Dashboard appears instantly, data loads progressively with spinners
@@ -32,6 +32,7 @@ Sync your **Antigravity** settings, extensions, and keybindings across devices u
 | Settings (`settings.json`)       | ✅     |
 | Keybindings (`keybindings.json`) | ✅     |
 | Extensions                       | ✅     |
+| Snippets                         | ✅     |
 
 ## Installation
 
@@ -83,7 +84,7 @@ Click the `$(sync) Antigravity Sync` button in the status bar to quickly open th
 
 1. **Authentication**: OAuth 2.0 flow opens your browser for Google login
 2. **Storage**: Profiles are saved in Google Drive's hidden [appDataFolder](https://developers.google.com/drive/api/guides/appdata) — invisible to the user, doesn't consume storage quota
-3. **Sync**: Settings and keybindings are read as JSON5 (preserving compatibility) and stored as JSON in Drive
+3. **Sync**: Settings, keybindings, and snippets are stored as base64-encoded content, preserving comments and formatting
 
 ## Configuration
 
@@ -93,7 +94,6 @@ Click the `$(sync) Antigravity Sync` button in the status bar to quickly open th
 
 ## Important Notes
 
-- Comments in `settings.json` and `keybindings.json` are **not preserved** (JSON5 → JSON conversion)
 - Extension sync will prompt before installing/uninstalling extensions
 - A window reload may be required after pulling a profile
 - Tokens are stored securely via OS-level encryption (SecretStorage)
@@ -173,6 +173,14 @@ src/
 ```
 
 ## Release Notes
+
+### 0.6.0 (2026-03-08)
+
+- 📝 **Snippets Sync** — Sync user snippets across devices (base64-bundled)
+- 🔧 **Base64 Config Storage** — Settings and keybindings now preserve comments and whitespace
+- 🛡️ **Orphaned Panel Cleanup** — Dashboard auto-closes on extension restart
+- 🗑️ Removed `json5` dependency
+- ⚠️ **Breaking**: Profiles from v0.5.0 are incompatible — delete and recreate
 
 ### 0.5.0 (2026-03-08)
 

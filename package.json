@@ -1,8 +1,8 @@
 {
     "name": "antigravity-sync",
     "displayName": "Antigravity Sync",
-    "description": "Sync your Antigravity settings, extensions, and keybindings across devices using Google Drive",
-    "version": "0.5.0",
+    "description": "Sync your Antigravity settings, extensions, keybindings, and snippets across devices using Google Drive",
+    "version": "0.6.0",
     "publisher": "thotam",
     "icon": "images/icon.png",
     "license": "MIT",
@@ -21,6 +21,7 @@
         "settings",
         "extensions",
         "keybindings",
+        "snippets",
         "google-drive",
         "profile",
         "antigravity"
@@ -65,7 +66,5 @@
         "webpack": "^5.99.6",
         "webpack-cli": "^6.0.1"
     },
-    "dependencies": {
-        "json5": "^2.2.3"
-    }
+    "dependencies": {}
 }

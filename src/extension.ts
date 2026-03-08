@@ -89,9 +89,29 @@ export async function activate(ctx: vscode.ExtensionContext) {
             statusBarItem, logger
         );
 
+        // Close orphaned dashboard panels from previous extension session
+        closeOrphanedPanels();
+
         logger.info("Extension activated successfully", false, "activate");
     } catch (error) {
         logger.error(`${error}`, "activate", false, error);
+    }
+}
+
+/** Close orphaned dashboard tabs that survive extension restart */
+function closeOrphanedPanels() {
+    for (const group of vscode.window.tabGroups.all) {
+        for (const tab of group.tabs) {
+            if (tab.input instanceof vscode.TabInputWebview) {
+                const viewType = (tab.input as any).viewType as string;
+                if (viewType?.includes("antigravitysync.dashboard")) {
+                    vscode.window.tabGroups.close(tab).then(
+                        () => logger.info("Closed orphaned dashboard tab"),
+                        () => { /* ignore */ }
+                    );
+                }
+            }
+        }
     }
 }
 

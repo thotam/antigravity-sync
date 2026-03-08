@@ -13,21 +13,22 @@ Each profile is stored as a dedicated folder in Google Drive's appDataFolder:
 ├── meta.json          # Profile metadata (name, timestamps, syncKeys)
 ├── settings.json      # Editor settings
 ├── extensions.json    # Installed extension IDs
-└── keybindings.json   # Keyboard shortcuts
+├── keybindings.json   # Keyboard shortcuts
+└── snippets.json      # User snippets (base64-bundled)
 ```
 
 A central `sync-meta.json` file at root appDataFolder stores syncKeys for all profiles, enabling fast listing (2 API calls instead of N+1).
 
 This structure allows:
 - Individual file updates without rewriting the entire profile
-- Easy extensibility for future sync targets (snippets, themes, etc.)
+- Easy extensibility for future sync targets (themes, etc.)
 - Better conflict resolution at the file level
 
 ### Operations
 
 | Action         | Description                                          |
 | -------------- | ---------------------------------------------------- |
-| **Create**     | Captures current settings, extensions, and keybindings into a new profile with selectable sync items |
+| **Create**     | Captures current settings, extensions, keybindings, and snippets into a new profile with selectable sync items |
 | **Push**       | Updates an existing profile with your current configuration (checkboxes pre-checked to match profile) |
 | **Pull**       | Downloads a profile and applies it to your local editor (only shows items available in the profile) |
 | **Delete**     | Permanently removes a profile from Google Drive       |
@@ -60,8 +61,25 @@ Every sync operation (create, push, pull) displays a real-time progress modal:
 When pulling a profile, the extension compares your local extensions with the remote profile:
 
 - **Confirm modal** — Lists extensions to install and remove before applying
-- **Skip option** — You can skip extension sync and only apply settings/keybindings
+- **Skip option** — You can skip extension sync and only apply settings/keybindings/snippets
 - **Exclude list** — Configure `antigravitysync.excludeExtensions` to permanently exclude specific extensions from sync
+
+## 📝 Snippets Sync (v0.6.0+)
+
+Sync user-level snippets from `User/snippets/` directory:
+
+- **Multi-file support** — All `.json` and `.code-snippets` files are synced
+- **Base64 encoding** — File contents preserved exactly (comments, whitespace, JSON5 syntax)
+- **Bundled storage** — All snippet files packed into a single `snippets.json` on Google Drive
+- **Auto-create directory** — Snippets directory created automatically on pull if it doesn't exist
+
+## 🔧 Base64 Config Preservation (v0.6.0+)
+
+Settings and keybindings are now stored as raw base64-encoded content:
+
+- **Comments preserved** — JSON5 comments in `settings.json` and `keybindings.json` survive sync
+- **Whitespace preserved** — Original formatting maintained exactly
+- **No conversion loss** — No JSON5 → JSON parsing that strips comments
 
 ## 🗂️ App Data Explorer (v0.4.0+)
 
@@ -115,17 +133,16 @@ Modern webview panel providing all functionality in one place:
 | Settings (`settings.json`)       | ✅     | `settings.json`    |
 | Keybindings (`keybindings.json`) | ✅     | `keybindings.json` |
 | Extensions                       | ✅     | `extensions.json`  |
+| Snippets                         | ✅     | `snippets.json`    |
 
 ### Planned
 
 | Item       | Status  |
 | ---------- | ------- |
-| Snippets   | Planned |
 | Themes     | Planned |
 | Tasks      | Planned |
 
 ## ⚠️ Known Limitations
 
-- Comments in `settings.json` and `keybindings.json` are **not preserved** (JSON5 → JSON conversion)
 - A window reload may be required after pulling a profile
 - This extension is designed exclusively for [Antigravity IDE](https://www.antigravity.google/)

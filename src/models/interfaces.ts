@@ -15,6 +15,7 @@ export const DEFAULT_SYNC_ITEMS: ISyncItem[] = [
     { key: "settings",    fileName: "settings.json",    label: "Settings",    icon: "settings-gear", enabled: true },
     { key: "extensions",  fileName: "extensions.json",  label: "Extensions",  icon: "extensions",    enabled: true },
     { key: "keybindings", fileName: "keybindings.json", label: "Keybindings", icon: "keyboard",      enabled: true },
+    { key: "snippets",    fileName: "snippets.json",    label: "Snippets",    icon: "symbol-snippet",  enabled: true },
 ];
 
 /** Profile metadata — stored as meta.json inside profile folder */
@@ -34,13 +35,3 @@ export interface IProfile {
 /** Root sync-meta.json — lưu syncKeys tất cả profiles ở root appDataFolder */
 export type ISyncMeta = Record<string, string[]>;
 // { "work": ["settings", "extensions"], "home": ["settings"] }
-
-export interface ISettings {
-    [key: string]: any;
-}
-
-export interface IKeybinds {
-    key: string;
-    command: string;
-    when?: string;
-}
