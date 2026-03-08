@@ -3,6 +3,7 @@
 
 const path = require("path");
 const webpack = require("webpack");
+const CopyPlugin = require("copy-webpack-plugin");
 require("dotenv").config();
 
 /** @type {import('webpack').Configuration} */
@@ -39,6 +40,23 @@ const config = {
         new webpack.DefinePlugin({
             "process.env.GOOGLE_CLIENT_ID": JSON.stringify(process.env.GOOGLE_CLIENT_ID),
             "process.env.GOOGLE_CLIENT_SECRET": JSON.stringify(process.env.GOOGLE_CLIENT_SECRET),
+        }),
+        // Copy webview assets (CSS, JS) và Codicons font vào dist/
+        new CopyPlugin({
+            patterns: [
+                {
+                    from: "src/webview/*.css",
+                    to: "webview/[name][ext]",
+                },
+                {
+                    from: "src/webview/*.js",
+                    to: "webview/[name][ext]",
+                },
+                {
+                    from: "node_modules/@vscode/codicons/dist",
+                    to: "webview/codicons",
+                },
+            ],
         }),
     ],
     devtool: "nosources-source-map",

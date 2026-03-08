@@ -10,11 +10,12 @@ Sync your **Antigravity** settings, extensions, and keybindings across devices u
 
 ## Features
 
-- **Profile Management** — Create, pull, update, and delete sync profiles
+- **Full Dashboard UI** — Modern webview panel with account info, profile management, and quick actions
 - **Google Drive Storage** — Data stored securely in a hidden app-specific folder
 - **One-Click Sync** — Push or pull your entire configuration in seconds
 - **Cross-Platform** — Windows, macOS, and Linux
 - **Secure** — Google OAuth 2.0, tokens encrypted by OS via SecretStorage
+- **Google Avatar** — Display your Google profile picture in the dashboard
 
 ### What Gets Synced
 
@@ -45,28 +46,30 @@ Search for **"Antigravity Sync"** in the Extensions panel, or install directly f
 ### First Time Setup
 
 1. Install the extension
-2. Click the **StatusBar** button → **Login with Google**
-3. Authorize in browser → you're done!
+2. Click the **StatusBar** button or run `Antigravity Sync: Open Dashboard`
+3. Click **Sign in with Google** → Authorize in browser → you're done!
 
-### Commands
+### Command
 
-Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`) and type **"Antigravity Sync"**:
+Open the Command Palette (`Ctrl+Shift+P` / `Cmd+Shift+P`):
 
-| Command                | Description                                    |
-| ---------------------- | ---------------------------------------------- |
-| **Show Menu**          | Open the quick action menu                     |
-| **Login with Google**  | Authenticate with Google                       |
-| **Logout**             | Remove stored credentials                      |
-| **Create Profile**     | Save current config as a new profile           |
-| **Pull Profile**       | Download and apply a profile                   |
-| **Update Profile**     | Update an existing profile with current config |
-| **Delete Profile**     | Remove a profile from Google Drive             |
-| **Show Logs**          | View extension logs                            |
-| **Set Paths Manually** | Manually set config file paths                 |
+| Command                              | Description              |
+| ------------------------------------ | ------------------------ |
+| **Antigravity Sync: Open Dashboard** | Open the Dashboard panel |
+
+All profile management (create, pull, push, delete), account actions (sign in/out), and settings are available directly within the Dashboard UI.
 
 ### Status Bar
 
-Click the `$(sync) Antigravity Sync` button in the status bar to quickly access the menu.
+Click the `$(sync) Antigravity Sync` button in the status bar to quickly open the Dashboard.
+
+### Dashboard Features
+
+- **Account Card** — Shows your Google email and avatar with sign-out button
+- **Quick Actions** — Create profile, set settings/keybindings path, view logs
+- **Profile Cards** — Pull, push, or delete profiles with one click
+- **Modal Dialogs** — Create profile input, delete/sign-out confirmations, reload prompt
+- **Toast Notifications** — Success/error/info feedback with progress bar and close button
 
 ## How It Works
 
@@ -146,17 +149,31 @@ Get token from: [open-vsx.org/user-settings/tokens](https://open-vsx.org/user-se
 
 ```
 src/
-├── extension.ts           # Entry point, commands, StatusBar
+├── extension.ts               # Entry point, single command, StatusBar
 ├── models/
-│   └── interfaces.ts      # TypeScript interfaces
+│   └── interfaces.ts          # TypeScript interfaces
+├── providers/
+│   └── dashboard-provider.ts  # Full webview panel dashboard
+├── webview/
+│   ├── dashboard.css          # Dashboard styles (modal, toast, cards)
+│   └── dashboard.js           # Dashboard logic (modal system, state rendering)
 └── core/
-    ├── google-auth.ts      # Google OAuth 2.0 flow
-    ├── google-drive.ts     # Google Drive API (appDataFolder)
-    ├── sync-controller.ts  # Read/write Antigravity config
-    └── logger.ts           # Output channel logging
+    ├── google-auth.ts          # Google OAuth 2.0 flow
+    ├── google-drive.ts         # Google Drive API (appDataFolder)
+    ├── sync-controller.ts      # Read/write Antigravity config
+    └── logger.ts               # Output channel logging
 ```
 
 ## Release Notes
+
+### 0.3.0 (2026-03-08)
+
+- 🎨 **Full Dashboard UI** — Modern webview panel replaces command palette menu
+- 🪟 **Modal System** — Custom confirm/input modals with backdrop blur and animations
+- 🔔 **Toast Notifications** — Upgraded with close button, progress bar, and slide-in animation
+- 👤 **Google Avatar** — Display profile picture in header and account card
+- 🧹 **Simplified Commands** — Only `Open Dashboard` remains, all actions are in the panel
+- 🌍 **English UI** — All user-facing text translated to English for global accessibility
 
 ### 0.2.0 (2026-03-08)
 

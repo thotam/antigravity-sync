@@ -1,5 +1,29 @@
 # Changelog
 
+## [0.3.0] - 2026-03-08
+
+### Added
+- Full webview Dashboard panel — replaces the old command palette menu
+- Custom modal system (confirm and input dialogs) with backdrop blur, keyboard support, and animations
+- Upgraded toast notifications with close button, progress bar, and slide-in animation
+- Google profile avatar display in header and account card
+- OAuth scopes for `userinfo.email` and `userinfo.profile` to fetch account details
+- Project rule file enforcing English-only text for global accessibility
+
+### Changed
+- Simplified to a single command: `Antigravity Sync: Open Dashboard`
+- All user-facing text translated from Vietnamese to English
+- Logout and delete confirmations now use in-webview modals instead of native VS Code dialogs
+- Profile creation uses in-webview input modal instead of `vscode.window.showInputBox`
+- Reload prompt after pull uses in-webview modal instead of native notification
+- StatusBar click opens the Dashboard directly (no menu)
+- File picker cancel no longer shows a false error toast
+
+### Removed
+- All individual commands (login, logout, create/pull/update/delete profile, show logs, set paths)
+- QuickPick menu system
+- Vietnamese UI text
+
 ## [0.2.0] - 2026-03-08
 
 ### Changed

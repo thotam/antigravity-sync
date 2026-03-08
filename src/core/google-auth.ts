@@ -10,7 +10,11 @@ import Logger from "./logger";
 // OAuth config — injected from .env at build time via webpack DefinePlugin
 const CLIENT_ID = process.env.GOOGLE_CLIENT_ID!;
 const CLIENT_SECRET = process.env.GOOGLE_CLIENT_SECRET!;
-const SCOPES = ["https://www.googleapis.com/auth/drive.appdata"];
+const SCOPES = [
+    "https://www.googleapis.com/auth/drive.appdata",
+    "https://www.googleapis.com/auth/userinfo.email",
+    "https://www.googleapis.com/auth/userinfo.profile",
+];
 const AUTH_URL = "https://accounts.google.com/o/oauth2/v2/auth";
 const TOKEN_URL = "https://oauth2.googleapis.com/token";
 
@@ -122,6 +126,7 @@ export default class GoogleAuth {
     public async getAccountInfo(): Promise<{
         email: string;
         name: string;
+        picture?: string;
     } | null> {
         try {
             const token = await this.getAccessToken();
@@ -130,7 +135,7 @@ export default class GoogleAuth {
                 token
             );
             const info = JSON.parse(data);
-            return { email: info.email, name: info.name };
+            return { email: info.email, name: info.name, picture: info.picture };
         } catch {
             return null;
         }

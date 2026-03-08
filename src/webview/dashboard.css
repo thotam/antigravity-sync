@@ -1,0 +1,665 @@
+/* Dashboard — Antigravity Sync
+ * Uses VS Code CSS variables for theme compatibility
+ * Custom accent for brand identity
+ */
+
+/* === Reset & Base === */
+*,
+*::before,
+*::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+body {
+    background: var(--vscode-editor-background);
+    color: var(--vscode-editor-foreground);
+    font-family: var(--vscode-font-family, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif);
+    font-size: var(--vscode-font-size, 13px);
+    line-height: 1.5;
+    overflow-x: hidden;
+}
+
+/* === Accent Colors === */
+:root {
+    --ag-accent: #22C55E;
+    --ag-accent-hover: #16A34A;
+    --ag-accent-glow: rgba(34, 197, 94, 0.15);
+    --ag-danger: #EF4444;
+    --ag-danger-hover: #DC2626;
+    --ag-radius: 8px;
+    --ag-radius-sm: 6px;
+    --ag-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
+    --ag-shadow-hover: 0 4px 16px rgba(0, 0, 0, 0.25);
+    --ag-transition: 200ms ease;
+}
+
+/* === Header === */
+.header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 12px 24px;
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.08));
+    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    position: sticky;
+    top: 0;
+    z-index: 100;
+}
+
+.header-left {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.header-icon {
+    font-size: 20px;
+    color: var(--ag-accent);
+}
+
+.header-title {
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.3px;
+}
+
+.header-right {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+}
+
+/* === Main Content === */
+.main {
+    padding: 20px 24px;
+    max-width: 960px;
+    margin: 0 auto;
+}
+
+/* === Cards === */
+.card {
+    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    border: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.08));
+    border-radius: var(--ag-radius);
+    box-shadow: var(--ag-shadow);
+    transition: box-shadow var(--ag-transition), border-color var(--ag-transition);
+    overflow: hidden;
+}
+
+.card:hover {
+    box-shadow: var(--ag-shadow-hover);
+}
+
+.card-header {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 14px 16px;
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.06));
+    font-weight: 600;
+    font-size: 13px;
+}
+
+.card-header-left {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex: 1;
+}
+
+.card-body {
+    padding: 16px;
+}
+
+/* === Grid Layout === */
+.grid-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 16px;
+    margin-bottom: 16px;
+}
+
+@media (max-width: 600px) {
+    .grid-row {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* === Buttons === */
+.btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 6px 14px;
+    border: none;
+    border-radius: var(--ag-radius-sm);
+    font-family: inherit;
+    font-size: 12px;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all var(--ag-transition);
+    white-space: nowrap;
+}
+
+.btn:focus-visible {
+    outline: 2px solid var(--vscode-focusBorder);
+    outline-offset: 2px;
+}
+
+.btn:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
+.btn-primary {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.btn-primary:hover:not(:disabled) {
+    background: var(--vscode-button-hoverBackground);
+}
+
+.btn-accent {
+    background: var(--ag-accent);
+    color: #fff;
+}
+
+.btn-accent:hover:not(:disabled) {
+    background: var(--ag-accent-hover);
+    box-shadow: 0 0 12px var(--ag-accent-glow);
+}
+
+.btn-secondary {
+    background: var(--vscode-button-secondaryBackground);
+    color: var(--vscode-button-secondaryForeground);
+}
+
+.btn-secondary:hover:not(:disabled) {
+    background: var(--vscode-button-secondaryHoverBackground);
+}
+
+.btn-danger {
+    background: transparent;
+    color: var(--ag-danger);
+    border: 1px solid var(--ag-danger);
+}
+
+.btn-danger:hover:not(:disabled) {
+    background: var(--ag-danger);
+    color: #fff;
+}
+
+.btn-sm {
+    padding: 4px 10px;
+    font-size: 11px;
+}
+
+.btn-lg {
+    padding: 10px 24px;
+    font-size: 14px;
+}
+
+.btn-icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 28px;
+    height: 28px;
+    padding: 0;
+    border: none;
+    border-radius: var(--ag-radius-sm);
+    background: transparent;
+    color: var(--vscode-editor-foreground);
+    cursor: pointer;
+    transition: all var(--ag-transition);
+}
+
+.btn-icon:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.btn-icon:focus-visible {
+    outline: 2px solid var(--vscode-focusBorder);
+}
+
+.btn-icon.spinning .codicon {
+    animation: spin 600ms linear infinite;
+}
+
+/* === Account === */
+.account-info {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 12px;
+}
+
+.status-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    flex-shrink: 0;
+}
+
+.status-online {
+    background: var(--ag-accent);
+    box-shadow: 0 0 6px var(--ag-accent-glow);
+}
+
+.account-email {
+    font-size: 13px;
+    font-weight: 500;
+}
+
+/* === Avatar === */
+.avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    object-fit: cover;
+    border: 2px solid var(--ag-accent);
+    flex-shrink: 0;
+}
+
+.avatar-sm {
+    width: 22px;
+    height: 22px;
+    border-width: 1.5px;
+}
+
+/* === Quick Actions Grid === */
+.actions-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.actions-grid .btn {
+    justify-content: flex-start;
+    width: 100%;
+}
+
+/* === Badge === */
+.badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 20px;
+    height: 20px;
+    padding: 0 6px;
+    border-radius: 10px;
+    background: var(--vscode-badge-background);
+    color: var(--vscode-badge-foreground);
+    font-size: 11px;
+    font-weight: 600;
+}
+
+/* === Profiles Grid === */
+.profiles-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 12px;
+}
+
+.profile-card {
+    background: var(--vscode-input-background, var(--vscode-editor-background));
+    border: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.06));
+    border-radius: var(--ag-radius-sm);
+    padding: 14px;
+    transition: all var(--ag-transition);
+}
+
+.profile-card:hover {
+    border-color: var(--ag-accent);
+    box-shadow: 0 0 0 1px var(--ag-accent-glow);
+}
+
+.profile-name {
+    font-weight: 600;
+    font-size: 14px;
+    margin-bottom: 4px;
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.profile-meta {
+    font-size: 11px;
+    color: var(--vscode-descriptionForeground);
+    margin-bottom: 12px;
+}
+
+.profile-actions {
+    display: flex;
+    gap: 6px;
+}
+
+.profile-actions .btn {
+    flex: 1;
+    justify-content: center;
+    font-size: 11px;
+    padding: 4px 8px;
+}
+
+/* === Login Section === */
+.login-section {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 60vh;
+}
+
+.login-card {
+    text-align: center;
+    max-width: 400px;
+    padding: 48px 32px;
+}
+
+.login-icon {
+    font-size: 48px;
+    color: var(--ag-accent);
+    margin-bottom: 16px;
+    display: block;
+}
+
+.login-card h2 {
+    font-size: 20px;
+    font-weight: 600;
+    margin-bottom: 12px;
+}
+
+.login-desc {
+    color: var(--vscode-descriptionForeground);
+    font-size: 13px;
+    margin-bottom: 24px;
+    line-height: 1.6;
+}
+
+/* === Empty State === */
+.empty-state {
+    text-align: center;
+    padding: 32px 16px;
+    color: var(--vscode-descriptionForeground);
+}
+
+.empty-icon {
+    font-size: 36px;
+    margin-bottom: 12px;
+    display: block;
+    opacity: 0.5;
+}
+
+.empty-hint {
+    font-size: 12px;
+    margin-top: 4px;
+    opacity: 0.7;
+}
+
+/* === Toast Notifications === */
+.toast-container {
+    position: fixed;
+    bottom: 16px;
+    right: 16px;
+    z-index: 1000;
+    display: flex;
+    flex-direction: column-reverse;
+    gap: 8px;
+    pointer-events: none;
+}
+
+.toast {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 10px 14px;
+    border-radius: var(--ag-radius-sm);
+    font-size: 12px;
+    font-weight: 500;
+    box-shadow: var(--ag-shadow-hover);
+    pointer-events: auto;
+    animation: toast-in 300ms ease forwards;
+    max-width: 380px;
+    position: relative;
+    overflow: hidden;
+}
+
+.toast-content {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+}
+
+.toast-close {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 20px;
+    height: 20px;
+    border: none;
+    border-radius: 4px;
+    background: transparent;
+    color: inherit;
+    cursor: pointer;
+    opacity: 0.7;
+    transition: opacity var(--ag-transition);
+    flex-shrink: 0;
+}
+
+.toast-close:hover {
+    opacity: 1;
+}
+
+.toast-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    background: rgba(255, 255, 255, 0.4);
+    border-radius: 0 0 var(--ag-radius-sm) var(--ag-radius-sm);
+    animation: toast-progress 4s linear forwards;
+}
+
+.toast-success {
+    background: var(--ag-accent);
+    color: #fff;
+}
+
+.toast-error {
+    background: var(--ag-danger);
+    color: #fff;
+}
+
+.toast-info {
+    background: var(--vscode-button-background);
+    color: var(--vscode-button-foreground);
+}
+
+.toast-out {
+    animation: toast-out 300ms ease forwards;
+}
+
+@keyframes toast-in {
+    from { opacity: 0; transform: translateX(24px); }
+    to { opacity: 1; transform: translateX(0); }
+}
+
+@keyframes toast-out {
+    from { opacity: 1; transform: translateX(0); }
+    to { opacity: 0; transform: translateX(24px); }
+}
+
+@keyframes toast-progress {
+    from { width: 100%; }
+    to { width: 0%; }
+}
+
+/* === Modal System === */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    z-index: 900;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    animation: modal-backdrop-in 200ms ease forwards;
+    padding: 24px;
+}
+
+.modal-overlay.modal-out {
+    animation: modal-backdrop-out 200ms ease forwards;
+}
+
+.modal {
+    background: var(--vscode-sideBar-background, var(--vscode-editor-background));
+    border: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.1));
+    border-radius: var(--ag-radius);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4);
+    width: 100%;
+    max-width: 420px;
+    animation: modal-in 250ms ease forwards;
+    overflow: hidden;
+}
+
+.modal-out .modal {
+    animation: modal-out-scale 200ms ease forwards;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 16px 20px 12px;
+    font-weight: 600;
+    font-size: 14px;
+}
+
+.modal-header .codicon {
+    font-size: 18px;
+}
+
+.modal-header-danger .codicon {
+    color: var(--ag-danger);
+}
+
+.modal-header-accent .codicon {
+    color: var(--ag-accent);
+}
+
+.modal-body {
+    padding: 0 20px 16px;
+    font-size: 13px;
+    color: var(--vscode-descriptionForeground);
+    line-height: 1.6;
+}
+
+.modal-input {
+    width: 100%;
+    padding: 8px 12px;
+    margin-top: 12px;
+    border: 1px solid var(--vscode-input-border, var(--vscode-panel-border));
+    border-radius: var(--ag-radius-sm);
+    background: var(--vscode-input-background);
+    color: var(--vscode-input-foreground);
+    font-family: inherit;
+    font-size: 13px;
+    outline: none;
+    transition: border-color var(--ag-transition);
+}
+
+.modal-input:focus {
+    border-color: var(--vscode-focusBorder);
+}
+
+.modal-input::placeholder {
+    color: var(--vscode-input-placeholderForeground);
+}
+
+.modal-input-error {
+    font-size: 11px;
+    color: var(--ag-danger);
+    margin-top: 6px;
+    min-height: 16px;
+}
+
+.modal-footer {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 20px 16px;
+}
+
+.modal-footer .btn {
+    min-width: 80px;
+    justify-content: center;
+}
+
+@keyframes modal-backdrop-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+@keyframes modal-backdrop-out {
+    from { opacity: 1; }
+    to { opacity: 0; }
+}
+
+@keyframes modal-in {
+    from { opacity: 0; transform: scale(0.92) translateY(8px); }
+    to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+@keyframes modal-out-scale {
+    from { opacity: 1; transform: scale(1) translateY(0); }
+    to { opacity: 0; transform: scale(0.92) translateY(8px); }
+}
+
+/* === Loading Spinner === */
+.spinner {
+    display: inline-block;
+    width: 14px;
+    height: 14px;
+    border: 2px solid currentColor;
+    border-top-color: transparent;
+    border-radius: 50%;
+    animation: spin 600ms linear infinite;
+}
+
+@keyframes spin {
+    to { transform: rotate(360deg); }
+}
+
+/* === Custom Scrollbar === */
+::-webkit-scrollbar {
+    width: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+    background: var(--vscode-scrollbarSlider-background);
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: var(--vscode-scrollbarSlider-hoverBackground);
+}
+
+/* === Reduced Motion === */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        transition-duration: 0.01ms !important;
+    }
+}
