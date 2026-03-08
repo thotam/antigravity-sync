@@ -21,6 +21,10 @@ interface WebviewMessage {
     name?: string;
     fileName?: string;
     type?: "settings" | "keybindings";
+    folderId?: string;
+    folderName?: string;
+    fileId?: string;
+    pageToken?: string;
 }
 
 export default class DashboardProvider {
@@ -271,6 +275,41 @@ export default class DashboardProvider {
                 case "refresh":
                     await this.refreshState();
                     break;
+
+                case "listAppData": {
+                    sendLoading("listAppData", true);
+                    try {
+                        const result = await this.drive.listAppDataFiles(message.folderId, message.pageToken);
+                        this.panel?.webview.postMessage({
+                            type: "appDataFiles",
+                            files: result.files,
+                            nextPageToken: result.nextPageToken || null,
+                            folderId: message.folderId || null,
+                            folderName: message.folderName || "Root",
+                        });
+                    } catch (err: any) {
+                        sendToast("error", err?.message || "Failed to list app data files");
+                    }
+                    sendLoading("listAppData", false);
+                    break;
+                }
+
+                case "previewFile": {
+                    if (!message.fileId) { return; }
+                    sendLoading("previewFile", true);
+                    try {
+                        const content = await this.drive.downloadFileContent(message.fileId);
+                        this.panel?.webview.postMessage({
+                            type: "filePreview",
+                            content,
+                            fileName: message.fileName || "file",
+                        });
+                    } catch (err: any) {
+                        sendToast("error", err?.message || "Failed to preview file");
+                    }
+                    sendLoading("previewFile", false);
+                    break;
+                }
             }
         } catch (error: any) {
             this.logger.error(
@@ -410,6 +449,49 @@ export default class DashboardProvider {
                         <p class="empty-hint">Create your first profile to start syncing.</p>
                     </div>
                     <div id="profiles-list" class="profiles-grid"></div>
+                </div>
+            </div>
+        </div>
+
+        <!-- App Data Explorer (signed in) -->
+        <div id="appdata-section" style="display:none;">
+            <div class="card appdata-card">
+                <div class="card-header">
+                    <div class="card-header-left">
+                        <span class="codicon codicon-folder-opened"></span>
+                        <span>App Data Explorer</span>
+                    </div>
+                    <div class="appdata-header-actions">
+                        <button class="btn-icon" id="btn-back-appdata" title="Go Back" style="display:none;">
+                            <span class="codicon codicon-arrow-left"></span>
+                        </button>
+                        <button class="btn-icon" id="btn-refresh-appdata" title="Refresh">
+                            <span class="codicon codicon-refresh"></span>
+                        </button>
+                    </div>
+                </div>
+                <div class="card-body">
+                    <div class="breadcrumb" id="appdata-breadcrumb">
+                        <span class="breadcrumb-item active">Root</span>
+                    </div>
+                    <div id="appdata-empty" class="empty-state" style="display:none;">
+                        <span class="codicon codicon-folder empty-icon"></span>
+                        <p>This folder is empty</p>
+                    </div>
+                    <div id="appdata-table-wrapper" class="appdata-table-wrapper">
+                        <table class="appdata-table" id="appdata-table">
+                            <thead>
+                                <tr>
+                                    <th>Name</th>
+                                    <th>Type</th>
+                                    <th>Size</th>
+                                    <th>Modified</th>
+                                    <th></th>
+                                </tr>
+                            </thead>
+                            <tbody id="appdata-list"></tbody>
+                        </table>
+                    </div>
                 </div>
             </div>
         </div>

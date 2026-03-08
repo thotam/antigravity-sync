@@ -654,6 +654,202 @@ body {
     background: var(--vscode-scrollbarSlider-hoverBackground);
 }
 
+/* === App Data Explorer === */
+.appdata-card {
+    margin-top: 16px;
+}
+
+.appdata-header-actions {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+}
+
+/* Breadcrumb */
+.breadcrumb {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    padding: 0 0 12px;
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    flex-wrap: wrap;
+}
+
+.breadcrumb-item {
+    cursor: pointer;
+    padding: 2px 4px;
+    border-radius: 3px;
+    transition: all var(--ag-transition);
+}
+
+.breadcrumb-item:hover:not(.active) {
+    background: var(--vscode-list-hoverBackground);
+    color: var(--vscode-editor-foreground);
+}
+
+.breadcrumb-item.active {
+    cursor: default;
+    color: var(--vscode-editor-foreground);
+    font-weight: 600;
+}
+
+.breadcrumb-sep {
+    font-size: 10px;
+    opacity: 0.5;
+}
+
+/* App Data Table */
+.appdata-table-wrapper {
+    overflow-x: auto;
+}
+
+.appdata-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 12px;
+}
+
+.appdata-table thead th {
+    text-align: left;
+    padding: 8px 10px;
+    font-weight: 600;
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--vscode-descriptionForeground);
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.08));
+}
+
+.appdata-row td {
+    padding: 8px 10px;
+    border-bottom: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.04));
+    vertical-align: middle;
+}
+
+.appdata-row:hover {
+    background: var(--vscode-list-hoverBackground);
+}
+
+.appdata-row-folder {
+    cursor: pointer;
+}
+
+.appdata-row-folder:hover .appdata-name {
+    color: var(--ag-accent);
+}
+
+.appdata-name {
+    font-weight: 500;
+    white-space: nowrap;
+    transition: color var(--ag-transition);
+}
+
+.appdata-name .codicon {
+    margin-right: 8px;
+    vertical-align: middle;
+}
+
+.appdata-size,
+.appdata-date {
+    white-space: nowrap;
+    color: var(--vscode-descriptionForeground);
+    font-size: 11px;
+}
+
+.appdata-actions {
+    text-align: right;
+    white-space: nowrap;
+}
+
+/* Type Badges */
+.type-badge {
+    display: inline-block;
+    padding: 1px 8px;
+    border-radius: 10px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.type-badge-folder {
+    background: rgba(59, 130, 246, 0.15);
+    color: #60A5FA;
+}
+
+.type-badge-json {
+    background: var(--ag-accent-glow);
+    color: var(--ag-accent);
+}
+
+.type-badge-text {
+    background: rgba(168, 85, 247, 0.15);
+    color: #C084FC;
+}
+
+.type-badge-default {
+    background: rgba(148, 163, 184, 0.15);
+    color: var(--vscode-descriptionForeground);
+}
+
+/* Pagination Bar */
+.pagination-bar {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 12px;
+    padding: 12px 0 4px;
+}
+
+.page-indicator {
+    font-size: 12px;
+    color: var(--vscode-descriptionForeground);
+    font-weight: 500;
+    min-width: 60px;
+    text-align: center;
+}
+
+.pagination-bar button:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* File Preview Modal */
+.file-preview-modal {
+    max-width: 680px;
+    max-height: 80vh;
+    display: flex;
+    flex-direction: column;
+}
+
+.file-preview-body {
+    flex: 1;
+    overflow: auto;
+    padding: 0 20px 16px !important;
+}
+
+.file-preview-content {
+    background: var(--vscode-editor-background);
+    border: 1px solid var(--vscode-panel-border, rgba(255,255,255,0.08));
+    border-radius: var(--ag-radius-sm);
+    padding: 16px;
+    font-family: var(--vscode-editor-font-family, "Fira Code", "Consolas", monospace);
+    font-size: 12px;
+    line-height: 1.6;
+    overflow-x: auto;
+    white-space: pre;
+    margin: 0;
+    max-height: 50vh;
+    color: var(--vscode-editor-foreground);
+}
+
+.file-preview-content code {
+    font-family: inherit;
+    background: none;
+}
+
 /* === Reduced Motion === */
 @media (prefers-reduced-motion: reduce) {
     *,

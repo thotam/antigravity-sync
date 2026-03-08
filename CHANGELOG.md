@@ -1,5 +1,15 @@
 # Changelog
 
+## [0.4.0] - 2026-03-08
+
+### Added
+- **App Data Explorer** — Browse all files and folders in Google Drive appDataFolder directly from the Dashboard
+- Folder navigation: double-click to drill down, breadcrumb trail, and back button
+- File preview modal for JSON and text-based files with formatted display
+- Paginated file listing with Prev/Next controls (20 items per page)
+- Type badges with color coding (Folder, JSON, Text, File)
+- File metadata display: name, type, size, and modified time (with seconds)
+
 ## [0.3.0] - 2026-03-08
 
 ### Added

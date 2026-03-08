@@ -21,6 +21,18 @@ interface DriveFileList {
     files: DriveFile[];
 }
 
+/** File/folder metadata for App Data Explorer */
+export interface AppDataFile {
+    id: string;
+    name: string;
+    mimeType: string;
+    size?: string;
+    modifiedTime?: string;
+    createdTime?: string;
+}
+
+const FOLDER_MIME = "application/vnd.google-apps.folder";
+
 export default class GoogleDriveService {
     private auth: GoogleAuth;
     private logger: Logger;
@@ -45,6 +57,48 @@ export default class GoogleDriveService {
         );
         const result = JSON.parse(data) as DriveFileList;
         return result.files || [];
+    }
+
+    /** List files/folders in appDataFolder — single page */
+    public async listAppDataFiles(parentId?: string, pageToken?: string): Promise<{ files: AppDataFile[]; nextPageToken?: string }> {
+        const token = await this.auth.getAccessToken();
+        const PAGE_SIZE = 20;
+
+        const q = parentId
+            ? `'${parentId}' in parents and trashed = false`
+            : "trashed = false";
+        const params = new URLSearchParams({
+            spaces: "appDataFolder",
+            fields: "nextPageToken, files(id, name, mimeType, size, modifiedTime, createdTime)",
+            q,
+            pageSize: String(PAGE_SIZE),
+        });
+        if (pageToken) { params.set("pageToken", pageToken); }
+
+        const data = await this.httpsGet(
+            `${DRIVE_API}${DRIVE_FILES}?${params.toString()}`,
+            token
+        );
+        const result = JSON.parse(data);
+        const files: AppDataFile[] = result.files || [];
+
+        // Google Drive API may return nextPageToken even when next page is empty.
+        // If fewer files than pageSize → no more pages.
+        const hasMore = files.length >= PAGE_SIZE && result.nextPageToken;
+
+        return {
+            files,
+            nextPageToken: hasMore ? result.nextPageToken : undefined,
+        };
+    }
+
+    /** Download raw file content by ID (for preview) */
+    public async downloadFileContent(fileId: string): Promise<string> {
+        const token = await this.auth.getAccessToken();
+        return this.httpsGet(
+            `${DRIVE_API}${DRIVE_FILES}/${fileId}?alt=media`,
+            token
+        );
     }
 
     /** Get a profile by name */

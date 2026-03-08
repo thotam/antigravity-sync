@@ -11,6 +11,7 @@ Sync your **Antigravity** settings, extensions, and keybindings across devices u
 ## Features
 
 - **Full Dashboard UI** — Modern webview panel with account info, profile management, and quick actions
+- **App Data Explorer** — Browse files/folders in Google Drive appDataFolder with folder navigation, file preview, and pagination
 - **Google Drive Storage** — Data stored securely in a hidden app-specific folder
 - **One-Click Sync** — Push or pull your entire configuration in seconds
 - **Cross-Platform** — Windows, macOS, and Linux
@@ -38,7 +39,7 @@ Search for **"Antigravity Sync"** in the Extensions panel, or install directly f
 
 ## Requirements
 
-- **Antigravity IDE** (v1.90.0+)
+- **Antigravity IDE**
 - A Google account
 
 ## Usage
@@ -165,6 +166,13 @@ src/
 ```
 
 ## Release Notes
+
+### 0.4.0 (2026-03-08)
+
+- 📂 **App Data Explorer** — Browse all files/folders in Google Drive appDataFolder
+- 🗂️ **Folder Navigation** — Double-click to drill down, breadcrumb trail, back button
+- 👁️ **File Preview** — View JSON and text file content in a formatted modal
+- 📄 **Pagination** — Prev/Next controls for large directories (20 items/page)
 
 ### 0.3.0 (2026-03-08)
 

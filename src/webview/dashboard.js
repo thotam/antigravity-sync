@@ -280,6 +280,347 @@
     });
 
     // ========================================
+    // APP DATA EXPLORER
+    // ========================================
+
+    const appdataSection = document.getElementById("appdata-section");
+    const appdataList = document.getElementById("appdata-list");
+    const appdataEmpty = document.getElementById("appdata-empty");
+    const appdataBreadcrumb = document.getElementById("appdata-breadcrumb");
+    const appdataTableWrapper = document.getElementById("appdata-table-wrapper");
+    const btnRefreshAppdata = document.getElementById("btn-refresh-appdata");
+    const btnBackAppdata = document.getElementById("btn-back-appdata");
+
+    // Folder navigation state
+    let currentFolderId = null;
+    let folderStack = []; // [{ id, name }, ...]
+    let previewPending = false; // Prevent double preview
+
+    // Pagination state
+    let pageTokenStack = []; // previous page tokens
+    let currentPageToken = null;
+    let nextPageToken = null;
+    let currentPage = 1;
+
+    function fetchAppDataFiles(folderId, folderName, pageToken) {
+        vscode.postMessage({ command: "listAppData", folderId, folderName, pageToken: pageToken || undefined });
+    }
+
+    function navigateToFolder(folderId, folderName) {
+        if (currentFolderId) {
+            // Find existing entry or push current
+            const existingIdx = folderStack.findIndex((f) => f.id === currentFolderId);
+            if (existingIdx === -1) {
+                // Don't push if we're navigating from breadcrumb
+            }
+        }
+        folderStack.push({ id: currentFolderId, name: getCurrentFolderName() });
+        currentFolderId = folderId;
+        btnBackAppdata.style.display = "";
+        // Reset pagination on folder change
+        pageTokenStack = []; currentPageToken = null; nextPageToken = null; currentPage = 1;
+        fetchAppDataFiles(folderId, folderName, null);
+    }
+
+    function navigateBack() {
+        if (folderStack.length === 0) return;
+        const prev = folderStack.pop();
+        currentFolderId = prev.id;
+        btnBackAppdata.style.display = folderStack.length > 0 ? "" : "none";
+        pageTokenStack = []; currentPageToken = null; nextPageToken = null; currentPage = 1;
+        fetchAppDataFiles(currentFolderId, prev.name, null);
+    }
+
+    function navigateToBreadcrumb(index) {
+        // index 0 = Root, 1 = first folder, etc.
+        if (index === 0) {
+            currentFolderId = null;
+            folderStack = [];
+            btnBackAppdata.style.display = "none";
+            pageTokenStack = []; currentPageToken = null; nextPageToken = null; currentPage = 1;
+            fetchAppDataFiles(null, "Root", null);
+        } else {
+            const target = folderStack[index];
+            if (!target) return;
+            currentFolderId = target.id;
+            folderStack = folderStack.slice(0, index);
+            btnBackAppdata.style.display = folderStack.length > 0 ? "" : "none";
+            pageTokenStack = []; currentPageToken = null; nextPageToken = null; currentPage = 1;
+            fetchAppDataFiles(currentFolderId, target.name, null);
+        }
+    }
+
+    function getCurrentFolderName() {
+        if (!currentFolderId) return "Root";
+        if (folderStack.length > 0) {
+            const last = folderStack[folderStack.length - 1];
+            // The current name is actually what we navigated into
+            return "Folder";
+        }
+        return "Root";
+    }
+
+    // Render breadcrumb
+    function renderBreadcrumb(currentName) {
+        let html = `<span class="breadcrumb-item" data-bc-index="0">Root</span>`;
+        folderStack.forEach((f, i) => {
+            if (f.id !== null) {
+                html += `<span class="breadcrumb-sep codicon codicon-chevron-right"></span>`;
+                html += `<span class="breadcrumb-item" data-bc-index="${i + 1}">${escapeHtml(f.name || "Folder")}</span>`;
+            }
+        });
+        if (currentFolderId) {
+            html += `<span class="breadcrumb-sep codicon codicon-chevron-right"></span>`;
+            html += `<span class="breadcrumb-item active">${escapeHtml(currentName)}</span>`;
+        } else {
+            // Root is active
+            const rootSpan = html.split("data-bc-index=\"0\">")[0];
+            html = `<span class="breadcrumb-item active" data-bc-index="0">Root</span>`;
+            folderStack.forEach((f, i) => {
+                if (f.id !== null) {
+                    html += `<span class="breadcrumb-sep codicon codicon-chevron-right"></span>`;
+                    html += `<span class="breadcrumb-item" data-bc-index="${i + 1}">${escapeHtml(f.name || "Folder")}</span>`;
+                }
+            });
+        }
+        appdataBreadcrumb.innerHTML = html;
+    }
+
+    // MimeType → codicon
+    function mimeIcon(mime) {
+        if (mime === "application/vnd.google-apps.folder") return "folder";
+        if (mime === "application/json" || (mime && mime.includes("json"))) return "json";
+        if (mime && mime.startsWith("text/")) return "file-text";
+        return "file";
+    }
+
+    // MimeType → human-readable label
+    function mimeLabel(mime) {
+        if (mime === "application/vnd.google-apps.folder") return "Folder";
+        if (mime === "application/json" || (mime && mime.includes("json"))) return "JSON";
+        if (mime && mime.startsWith("text/")) return "Text";
+        if (mime && mime.startsWith("image/")) return "Image";
+        return "File";
+    }
+
+    // MimeType → badge class
+    function mimeBadgeClass(mime) {
+        if (mime === "application/vnd.google-apps.folder") return "type-badge-folder";
+        if (mime === "application/json" || (mime && mime.includes("json"))) return "type-badge-json";
+        if (mime && mime.startsWith("text/")) return "type-badge-text";
+        return "type-badge-default";
+    }
+
+    // Format file size
+    function formatSize(bytes) {
+        if (!bytes) return "—";
+        const num = parseInt(bytes, 10);
+        if (isNaN(num)) return "—";
+        if (num < 1024) return `${num} B`;
+        if (num < 1024 * 1024) return `${(num / 1024).toFixed(1)} KB`;
+        return `${(num / (1024 * 1024)).toFixed(1)} MB`;
+    }
+
+    // Check if file is previewable
+    function isPreviewable(mime) {
+        return mime !== "application/vnd.google-apps.folder" &&
+               !mime.startsWith("image/") &&
+               !mime.startsWith("video/") &&
+               !mime.startsWith("audio/");
+    }
+
+    // Render app data files table
+    function renderAppDataFiles(files, folderName, newNextPageToken) {
+        nextPageToken = newNextPageToken || null;
+        renderBreadcrumb(folderName);
+
+        // Google Drive API may return empty page even with valid nextPageToken.
+        // Auto-go back if empty and not on page 1.
+        if (files.length === 0 && currentPage > 1) {
+            nextPageToken = null;
+            currentPage--;
+            const prevToken = pageTokenStack.pop();
+            currentPageToken = prevToken || null;
+            fetchAppDataFiles(currentFolderId, null, currentPageToken);
+            return;
+        }
+
+        if (files.length === 0) {
+            appdataEmpty.style.display = "";
+            appdataTableWrapper.style.display = "none";
+            return;
+        }
+
+        appdataEmpty.style.display = "none";
+        appdataTableWrapper.style.display = "";
+
+        // Sort: folders first, then by name
+        const sorted = [...files].sort((a, b) => {
+            const aFolder = a.mimeType === "application/vnd.google-apps.folder" ? 0 : 1;
+            const bFolder = b.mimeType === "application/vnd.google-apps.folder" ? 0 : 1;
+            if (aFolder !== bFolder) return aFolder - bFolder;
+            return a.name.localeCompare(b.name);
+        });
+
+        appdataList.innerHTML = sorted.map((f) => {
+            const isFolder = f.mimeType === "application/vnd.google-apps.folder";
+            const modified = f.modifiedTime ? formatDate(f.modifiedTime) : "—";
+            const icon = mimeIcon(f.mimeType);
+            const label = mimeLabel(f.mimeType);
+            const badgeClass = mimeBadgeClass(f.mimeType);
+
+            return `
+                <tr class="appdata-row ${isFolder ? "appdata-row-folder" : ""}"
+                    ${isFolder ? `data-folder-id="${escapeAttr(f.id)}" data-folder-name="${escapeAttr(f.name)}"` : ""}>
+                    <td class="appdata-name">
+                        <span class="codicon codicon-${icon}"></span>
+                        ${escapeHtml(f.name)}
+                    </td>
+                    <td><span class="type-badge ${badgeClass}">${label}</span></td>
+                    <td class="appdata-size">${isFolder ? "—" : formatSize(f.size)}</td>
+                    <td class="appdata-date">${modified}</td>
+                    <td class="appdata-actions">
+                        ${!isFolder && isPreviewable(f.mimeType) ? `
+                            <button class="btn-icon" data-preview-id="${escapeAttr(f.id)}" data-preview-name="${escapeAttr(f.name)}" title="Preview">
+                                <span class="codicon codicon-eye"></span>
+                            </button>
+                        ` : ""}
+                    </td>
+                </tr>
+            `;
+        }).join("");
+
+        // Render pagination bar
+        renderPagination();
+    }
+
+    // Preview modal
+    function showFilePreview(fileName, content) {
+        previewPending = false;
+        // Close existing preview modal if any
+        const existing = document.querySelector(".file-preview-modal");
+        if (existing) { existing.closest(".modal-overlay")?.remove(); }
+        let formatted = content;
+        try {
+            const parsed = JSON.parse(content);
+            formatted = JSON.stringify(parsed, null, 2);
+        } catch { /* not JSON, keep as-is */ }
+
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay";
+        overlay.innerHTML = `
+            <div class="modal file-preview-modal">
+                <div class="modal-header modal-header-accent">
+                    <span class="codicon codicon-eye"></span>
+                    <span>${escapeHtml(fileName)}</span>
+                </div>
+                <div class="modal-body file-preview-body">
+                    <pre class="file-preview-content"><code>${escapeHtml(formatted)}</code></pre>
+                </div>
+                <div class="modal-footer">
+                    <button class="btn btn-secondary" data-modal="cancel">Close</button>
+                </div>
+            </div>
+        `;
+
+        function close() {
+            overlay.classList.add("modal-out");
+            setTimeout(() => overlay.remove(), 200);
+        }
+
+        overlay.querySelector("[data-modal='cancel']").addEventListener("click", close);
+
+        document.body.appendChild(overlay);
+    }
+
+    // Render pagination controls
+    function renderPagination() {
+        let paginationBar = document.getElementById("appdata-pagination");
+        if (!paginationBar) {
+            paginationBar = document.createElement("div");
+            paginationBar.id = "appdata-pagination";
+            paginationBar.className = "pagination-bar";
+            appdataTableWrapper.parentNode.appendChild(paginationBar);
+        }
+
+        // Hide if first page and no next
+        if (currentPage === 1 && !nextPageToken) {
+            paginationBar.style.display = "none";
+            return;
+        }
+
+        paginationBar.style.display = "";
+        const hasPrev = currentPage > 1;
+
+        paginationBar.innerHTML = `
+            <button class="btn btn-secondary btn-sm" id="btn-page-prev" ${!hasPrev ? "disabled" : ""}>
+                <span class="codicon codicon-chevron-left"></span> Prev
+            </button>
+            <span class="page-indicator">Page ${currentPage}</span>
+            <button class="btn btn-secondary btn-sm" id="btn-page-next" ${!nextPageToken ? "disabled" : ""}>
+                Next <span class="codicon codicon-chevron-right"></span>
+            </button>
+        `;
+
+        document.getElementById("btn-page-prev")?.addEventListener("click", () => {
+            if (currentPage <= 1) return;
+            currentPage--;
+            const prevToken = pageTokenStack.pop();
+            currentPageToken = prevToken || null;
+            fetchAppDataFiles(currentFolderId, null, currentPageToken);
+        });
+
+        document.getElementById("btn-page-next")?.addEventListener("click", () => {
+            if (!nextPageToken) return;
+            pageTokenStack.push(currentPageToken);
+            currentPageToken = nextPageToken;
+            currentPage++;
+            fetchAppDataFiles(currentFolderId, null, currentPageToken);
+        });
+    }
+
+    // Event: Refresh app data
+    btnRefreshAppdata.addEventListener("click", () => {
+        btnRefreshAppdata.classList.add("spinning");
+        pageTokenStack = []; currentPageToken = null; nextPageToken = null; currentPage = 1;
+        fetchAppDataFiles(currentFolderId, null, null);
+        setTimeout(() => btnRefreshAppdata.classList.remove("spinning"), 800);
+    });
+
+    // Event: Back button
+    btnBackAppdata.addEventListener("click", () => {
+        navigateBack();
+    });
+
+    // Event: Breadcrumb click
+    appdataBreadcrumb.addEventListener("click", (e) => {
+        const item = e.target.closest("[data-bc-index]");
+        if (!item || item.classList.contains("active")) return;
+        const idx = parseInt(item.dataset.bcIndex, 10);
+        navigateToBreadcrumb(idx);
+    });
+
+    // Event: Table delegation (dblclick folder, click preview)
+    appdataList.addEventListener("dblclick", (e) => {
+        const row = e.target.closest("[data-folder-id]");
+        if (row) {
+            navigateToFolder(row.dataset.folderId, row.dataset.folderName);
+        }
+    });
+
+    appdataList.addEventListener("click", (e) => {
+        const previewBtn = e.target.closest("[data-preview-id]");
+        if (previewBtn && !previewPending) {
+            previewPending = true;
+            vscode.postMessage({
+                command: "previewFile",
+                fileId: previewBtn.dataset.previewId,
+                fileName: previewBtn.dataset.previewName,
+            });
+        }
+    });
+
+    // ========================================
     // MESSAGE HANDLER
     // ========================================
 
@@ -310,6 +651,12 @@
                     }
                 });
                 break;
+            case "appDataFiles":
+                renderAppDataFiles(msg.files || [], msg.folderName || "Root", msg.nextPageToken);
+                break;
+            case "filePreview":
+                showFilePreview(msg.fileName, msg.content);
+                break;
         }
     });
 
@@ -322,12 +669,14 @@
         if (!state.isAuthenticated) {
             loginSection.style.display = "";
             dashboardSection.style.display = "none";
+            appdataSection.style.display = "none";
             headerUser.innerHTML = "";
             return;
         }
 
         loginSection.style.display = "none";
         dashboardSection.style.display = "";
+        appdataSection.style.display = "";
 
         // Header user info
         const avatarHtml = state.picture
@@ -352,6 +701,10 @@
 
         // Profiles
         renderProfiles(state.profiles || []);
+
+        // Auto-load app data files on first state
+        pageTokenStack = []; currentPageToken = null; nextPageToken = null; currentPage = 1;
+        fetchAppDataFiles(currentFolderId, null, null);
     }
 
     /** Render profile cards list */
@@ -458,6 +811,7 @@
                 year: "numeric",
                 hour: "2-digit",
                 minute: "2-digit",
+                second: "2-digit",
             });
         } catch {
             return isoString;
@@ -467,3 +821,4 @@
     // === Initialize ===
     vscode.postMessage({ command: "getState" });
 })();
+
