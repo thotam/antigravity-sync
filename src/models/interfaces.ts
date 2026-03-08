@@ -1,99 +1,46 @@
-// Các TypeScript interfaces cho Antigravity Sync
-// Copy nguyên vẹn từ extension gốc Sync Everything v0.3.1
+// TypeScript interfaces cho Antigravity Sync
+// Extensible sync architecture with SyncItem registry
 
-export type IGistCollection = IGist[];
-
-export interface IGist {
-	url: string;
-	forksUrl: string;
-	commitsUrl: string;
-	id: string;
-	nodeId: string;
-	gitPullUrl: string;
-	gitPushUrl: string;
-	htmlUrl: string;
-	files: IProfiles;
-	public: boolean;
-	createdAt: string;
-	updatedAt: string;
-	description?: string;
-	comments: number;
-	user?: IOwner;
-	commentsEnabled: boolean;
-	commentsUrl: string;
-	owner: IOwner;
-	truncated: boolean;
+/** Định nghĩa một mục sync — registry pattern */
+export interface ISyncItem {
+    key: string;           // "settings" | "extensions" | "keybindings" | ...
+    fileName: string;      // "settings.json", "extensions.json", ...
+    label: string;         // Tên hiển thị cho UI
+    icon: string;          // Codicon name
+    enabled: boolean;      // Mặc định có sync không
 }
 
-export interface IOwner {
-	login: string;
-	id: number;
-	nodeId: string;
-	avatarUrl: string;
-	gravatarId: string;
-	url: string;
-	htmlUrl: string;
-	followersUrl: string;
-	followingUrl: string;
-	gistsUrl: string;
-	starredUrl: string;
-	subscriptionsUrl: string;
-	organizationsUrl: string;
-	reposUrl: string;
-	eventsUrl: string;
-	receivedEventsUrl: string;
-	type: string;
-	userViewType: string;
-	siteAdmin: boolean;
+/** Registry mặc định — thêm data type mới chỉ cần thêm entry */
+export const DEFAULT_SYNC_ITEMS: ISyncItem[] = [
+    { key: "settings",    fileName: "settings.json",    label: "Settings",    icon: "settings-gear", enabled: true },
+    { key: "extensions",  fileName: "extensions.json",  label: "Extensions",  icon: "extensions",    enabled: true },
+    { key: "keybindings", fileName: "keybindings.json", label: "Keybindings", icon: "keyboard",      enabled: true },
+];
+
+/** Profile metadata — stored as meta.json inside profile folder */
+export interface IProfileMeta {
+    name: string;
+    createdAt: string;  // ISO 8601
+    updatedAt: string;  // ISO 8601
+    syncKeys: string[]; // Keys đã sync: ["settings", "extensions", "keybindings"]
 }
 
-export interface IFiles {
-	filename: string;
-	type: string;
-	language: string;
-	raw_url: string;
-	size: number;
-	truncated: boolean;
-	content: string;
-	encoding?: string;
-}
-
-export interface IProfiles {
-	[key: string]: IFiles;
-}
-
+/** Full profile data — dynamic, keyed by ISyncItem.key */
 export interface IProfile {
-	profileName: string;
-	settings: string | ISettings;
-	extensions: string[];
-	keybindings: string[] | any[];
+    profileName: string;
+    data: Record<string, any>;  // { settings: {...}, extensions: [...], keybindings: [...] }
 }
+
+/** Root sync-meta.json — lưu syncKeys tất cả profiles ở root appDataFolder */
+export type ISyncMeta = Record<string, string[]>;
+// { "work": ["settings", "extensions"], "home": ["settings"] }
 
 export interface ISettings {
-	[key: string]: any;
+    [key: string]: any;
 }
 
 export interface IKeybinds {
-	key: string;
-	command: string;
-	when?: string;
-}
-
-export interface IGistCreateRequest {
-	description: string;
-	files: {
-		[filename: string]: {
-			content: string | IProfile;
-		};
-	};
-	public?: boolean;
-}
-
-export interface IGistUpdateRequest {
-	description?: string;
-	files: {
-		[filename: string]: {
-			content: string | IProfile | null;
-		};
-	};
+    key: string;
+    command: string;
+    when?: string;
 }

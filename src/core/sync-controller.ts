@@ -7,14 +7,13 @@ import JSON5 from "json5";
 import {
     Extension,
     ExtensionContext,
-    ProgressLocation,
     Uri,
     commands,
     extensions,
     window,
     workspace,
 } from "vscode";
-import { IKeybinds, IProfile, ISettings } from "../models/interfaces";
+import { IKeybinds, IProfile, ISettings, ISyncItem } from "../models/interfaces";
 import Logger from "./logger";
 
 export default class SyncController {
@@ -116,29 +115,53 @@ export default class SyncController {
         return manualPath[0].fsPath;
     }
 
-    /** Read current settings + keybindings + extensions */
-    public async getActiveProfile(): Promise<Partial<IProfile>> {
-        const settings = (await this.readConfigFile<ISettings>("settings"))!;
-        const keybinds = (await this.readConfigFile<IKeybinds[]>("keybindings"))!;
-        const exts: string[] = this.getExtensions()!;
+    /** Read current config based on enabled sync items */
+    public async getActiveProfile(syncItems: ISyncItem[]): Promise<IProfile> {
+        const data: Record<string, any> = {};
 
-        return {
-            settings,
-            extensions: exts,
-            keybindings: keybinds,
-        } as Partial<IProfile>;
+        for (const item of syncItems.filter(i => i.enabled)) {
+            switch (item.key) {
+                case "settings":
+                    data.settings = (await this.readConfigFile<ISettings>("settings")) ?? {};
+                    break;
+                case "keybindings":
+                    data.keybindings = (await this.readConfigFile<IKeybinds[]>("keybindings")) ?? [];
+                    break;
+                case "extensions":
+                    data.extensions = this.getExtensions();
+                    break;
+                default:
+                    // Các data type mới sẽ thêm case ở đây
+                    break;
+            }
+        }
+
+        return { profileName: "", data };
     }
 
-    /** Write settings/keybindings + install/uninstall extensions from remote profile */
-    public async updateLocalProfile(profile: IProfile) {
-        const settingsPath: string = this.context.globalState.get("settingsPath")!;
-        await this.writeConfigFile(settingsPath, profile.settings);
-
-        const keybindingsPath: string =
-            this.context.globalState.get("keybindingsPath")!;
-        await this.writeConfigFile(keybindingsPath, profile.keybindings);
-
-        await this.installExtensions(profile.extensions);
+    /** Write config based on enabled sync items (không sync extension — provider xử lý riêng) */
+    public async updateLocalProfile(profile: IProfile, syncItems: ISyncItem[]) {
+        for (const item of syncItems.filter(i => i.enabled)) {
+            switch (item.key) {
+                case "settings": {
+                    const settingsPath: string = this.context.globalState.get("settingsPath")!;
+                    if (profile.data.settings) {
+                        await this.writeConfigFile(settingsPath, profile.data.settings);
+                    }
+                    break;
+                }
+                case "keybindings": {
+                    const keybindingsPath: string = this.context.globalState.get("keybindingsPath")!;
+                    if (profile.data.keybindings) {
+                        await this.writeConfigFile(keybindingsPath, profile.data.keybindings);
+                    }
+                    break;
+                }
+                // extensions xử lý bởi provider (qua getExtensionDiff + applyExtensionSync)
+                default:
+                    break;
+            }
+        }
     }
 
     /** Read config file (JSON5 — supports comments) */
@@ -203,96 +226,40 @@ export default class SyncController {
             .filter((id) => !excludeList.includes(id));
     }
 
-    /** Install/uninstall extensions — compare local vs remote */
-    private async installExtensions(remoteList: string[]) {
-        const localList: string[] = this.getExtensions();
+    /** Compare local vs remote extensions — trả về diff để provider confirm */
+    public getExtensionDiff(remoteList: string[]): { toInstall: string[]; toDelete: string[] } {
+        const localList = this.getExtensions();
         const localSet = new Set(localList);
         const remoteSet = new Set(remoteList);
 
-        const toInstall = remoteList.filter((id) => !localSet.has(id));
-        const toDelete = localList.filter((id) => !remoteSet.has(id));
+        return {
+            toInstall: remoteList.filter((id) => !localSet.has(id)),
+            toDelete: localList.filter((id) => !remoteSet.has(id)),
+        };
+    }
 
-        if (toInstall.length === 0 && toDelete.length === 0) {
-            window.showInformationMessage("Extensions are already in sync");
-            return;
-        }
-
-        const confirm = await window.showWarningMessage(
-            `Sync will install ${toInstall.length} and remove ${toDelete.length} extensions. Continue?`,
-            { modal: true },
-            "Yes",
-            "Cancel"
-        );
-
-        if (confirm !== "Yes") {
-            return;
-        }
-
+    /** Apply extension sync — install/uninstall without confirm (provider đã confirm) */
+    public async applyExtensionSync(toInstall: string[], toDelete: string[]): Promise<boolean> {
         let needsReload = false;
 
-        await window.withProgress(
-            {
-                location: ProgressLocation.Notification,
-                title: "Syncing Extensions",
-                cancellable: false,
-            },
-            async (progress) => {
-                const total = toInstall.length + toDelete.length;
-                let completed = 0;
-
-                for (const id of toDelete) {
-                    try {
-                        progress.report({
-                            message: `Uninstalling ${id}...`,
-                            increment: (++completed / total) * 100,
-                        });
-                        await commands.executeCommand(
-                            "workbench.extensions.uninstallExtension",
-                            id
-                        );
-                        needsReload = true;
-                    } catch (error) {
-                        this.logger.error(
-                            `Failed to uninstall ${id}`,
-                            "installExtensions",
-                            false,
-                            error
-                        );
-                    }
-                }
-
-                for (const id of toInstall) {
-                    try {
-                        progress.report({
-                            message: `Installing ${id}...`,
-                            increment: (++completed / total) * 100,
-                        });
-                        await commands.executeCommand(
-                            "workbench.extensions.installExtension",
-                            id
-                        );
-                        needsReload = true;
-                    } catch (error) {
-                        this.logger.error(
-                            `Failed to install ${id}`,
-                            "installExtensions",
-                            false,
-                            error
-                        );
-                    }
-                }
-            }
-        );
-
-        if (needsReload) {
-            const reload = await window.showInformationMessage(
-                "Extension sync complete. Reload to apply?",
-                "Reload",
-                "Later"
-            );
-            if (reload === "Reload") {
-                await commands.executeCommand("workbench.action.reloadWindow");
+        for (const id of toDelete) {
+            try {
+                await commands.executeCommand("workbench.extensions.uninstallExtension", id);
+                needsReload = true;
+            } catch (error) {
+                this.logger.error(`Failed to uninstall ${id}`, "applyExtensionSync", false, error);
             }
         }
+
+        for (const id of toInstall) {
+            try {
+                await commands.executeCommand("workbench.extensions.installExtension", id);
+                needsReload = true;
+            } catch (error) {
+                this.logger.error(`Failed to install ${id}`, "applyExtensionSync", false, error);
+            }
+        }
+
+        return needsReload;
     }
 }

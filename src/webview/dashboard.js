@@ -25,6 +25,7 @@
 
     // === State ===
     let currentState = null;
+    let syncItemsConfig = [];  // Từ backend DEFAULT_SYNC_ITEMS
 
     // ========================================
     // MODAL SYSTEM
@@ -46,9 +47,7 @@
                         <span class="codicon codicon-${opts.icon || "question"}"></span>
                         <span>${escapeHtml(opts.title || "Confirm")}</span>
                     </div>
-                    <div class="modal-body">
-                        ${escapeHtml(opts.message || "Are you sure?")}
-                    </div>
+                    <div class="modal-body" style="white-space: pre-wrap;">${escapeHtml(opts.message || "Are you sure?")}</div>
                     <div class="modal-footer">
                         <button class="btn btn-secondary" data-modal="cancel">
                             ${escapeHtml(opts.cancelLabel || "Cancel")}
@@ -85,6 +84,7 @@
      */
     function showInput(opts) {
         return new Promise((resolve) => {
+            const hasSyncItems = opts.syncItems && opts.syncItems.length > 0;
             const overlay = document.createElement("div");
             overlay.className = "modal-overlay";
             overlay.innerHTML = `
@@ -99,6 +99,17 @@
                                placeholder="${escapeAttr(opts.placeholder || "")}"
                                autocomplete="off" spellcheck="false" />
                         <div class="modal-input-error" id="modal-input-error"></div>
+                        ${hasSyncItems ? `
+                        <div class="sync-item-list">
+                            <div class="sync-item-label">Sync Items</div>
+                            ${opts.syncItems.map(item => `
+                                <label class="sync-item">
+                                    <input type="checkbox" value="${escapeAttr(item.key)}" ${item.enabled !== false ? 'checked' : ''} />
+                                    <span class="codicon codicon-${item.icon}"></span>
+                                    <span>${escapeHtml(item.label)}</span>
+                                </label>
+                            `).join('')}
+                        </div>` : ''}
                     </div>
                     <div class="modal-footer">
                         <button class="btn btn-secondary" data-modal="cancel">
@@ -132,7 +143,24 @@
 
             function submit() {
                 if (!validate()) return;
-                close(input.value.trim());
+                if (hasSyncItems) {
+                    const checkedKeys = Array.from(overlay.querySelectorAll('.sync-item input[type="checkbox"]:checked'))
+                        .map(cb => cb.value);
+                    if (checkedKeys.length === 0) {
+                        const listEl = overlay.querySelector('.sync-item-list');
+                        let errEl = listEl.querySelector('.sync-item-error');
+                        if (!errEl) {
+                            errEl = document.createElement('div');
+                            errEl.className = 'sync-item-error';
+                            listEl.appendChild(errEl);
+                        }
+                        errEl.textContent = 'Please select at least one item';
+                        return;
+                    }
+                    close({ value: input.value.trim(), syncKeys: checkedKeys });
+                } else {
+                    close(input.value.trim());
+                }
             }
 
             confirmBtn.addEventListener("click", submit);
@@ -146,6 +174,78 @@
 
             document.body.appendChild(overlay);
             input.focus();
+        });
+    }
+
+    /**
+     * Sync Select Modal — confirm with checkbox selection for push/pull
+     * @param {object} opts - { title, message, icon, syncItems, confirmLabel, cancelLabel, variant }
+     * @returns {Promise<string[]|null>} - selected sync keys or null if cancelled
+     */
+    function showSyncSelect(opts) {
+        return new Promise((resolve) => {
+            const variant = opts.variant || "accent";
+            const overlay = document.createElement("div");
+            overlay.className = "modal-overlay";
+            overlay.innerHTML = `
+                <div class="modal">
+                    <div class="modal-header modal-header-${variant}">
+                        <span class="codicon codicon-${opts.icon || "sync"}"></span>
+                        <span>${escapeHtml(opts.title || "Sync")}</span>
+                    </div>
+                    <div class="modal-body">
+                        <p style="margin:0 0 4px">${escapeHtml(opts.message || "")}</p>
+                        <div class="sync-item-list">
+                            <div class="sync-item-label">Sync Items</div>
+                            ${(opts.syncItems || []).map(item => `<label class="sync-item">
+                                    <input type="checkbox" value="${escapeAttr(item.key)}" ${item.enabled !== false ? 'checked' : ''} />
+                                    <span class="codicon codicon-${item.icon}"></span>
+                                    <span>${escapeHtml(item.label)}</span>
+                                </label>`).join('')}
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button class="btn btn-secondary" data-modal="cancel">
+                            ${escapeHtml(opts.cancelLabel || "Cancel")}
+                        </button>
+                        <button class="btn ${variant === "danger" ? "btn-danger" : "btn-accent"}" data-modal="confirm">
+                            ${escapeHtml(opts.confirmLabel || "Confirm")}
+                        </button>
+                    </div>
+                </div>
+            `;
+
+            function close(result) {
+                overlay.classList.add("modal-out");
+                setTimeout(() => { overlay.remove(); resolve(result); }, 200);
+            }
+
+            function submit() {
+                const checkedKeys = Array.from(overlay.querySelectorAll('.sync-item input[type="checkbox"]:checked'))
+                    .map(cb => cb.value);
+                if (checkedKeys.length === 0) {
+                    const listEl = overlay.querySelector('.sync-item-list');
+                    let errEl = listEl.querySelector('.sync-item-error');
+                    if (!errEl) {
+                        errEl = document.createElement('div');
+                        errEl.className = 'sync-item-error';
+                        listEl.appendChild(errEl);
+                    }
+                    errEl.textContent = 'Please select at least one item';
+                    return;
+                }
+                close(checkedKeys);
+            }
+
+            overlay.querySelector("[data-modal='confirm']").addEventListener("click", submit);
+            overlay.querySelector("[data-modal='cancel']").addEventListener("click", () => close(null));
+            overlay.addEventListener("click", (e) => { if (e.target === overlay) close(null); });
+            document.addEventListener("keydown", function onKey(e) {
+                if (e.key === "Escape") { document.removeEventListener("keydown", onKey); close(null); }
+                if (e.key === "Enter") { document.removeEventListener("keydown", onKey); submit(); }
+            });
+
+            document.body.appendChild(overlay);
         });
     }
 
@@ -212,20 +312,21 @@
     });
 
     btnCreateProfile.addEventListener("click", async () => {
-        const name = await showInput({
+        const result = await showInput({
             title: "Create Profile",
             message: "Enter a name for the new sync profile.",
             icon: "add",
             placeholder: "e.g. work, home, laptop",
             confirmLabel: "Create",
+            syncItems: syncItemsConfig,
             validate: (val) => {
                 if (!val) return "Profile name is required";
                 if (!/^[a-zA-Z0-9_-]+$/.test(val)) return "Only letters, numbers, hyphens, underscores";
                 return null;
             },
         });
-        if (name) {
-            vscode.postMessage({ command: "createProfile", name });
+        if (result && result.value) {
+            vscode.postMessage({ command: "createProfile", name: result.value, syncKeys: result.syncKeys });
         }
     });
 
@@ -244,7 +345,6 @@
     btnRefresh.addEventListener("click", () => {
         btnRefresh.classList.add("spinning");
         vscode.postMessage({ command: "refresh" });
-        setTimeout(() => btnRefresh.classList.remove("spinning"), 800);
     });
 
     // === Profile Actions (Event Delegation) ===
@@ -257,12 +357,45 @@
         const profileName = fileName.replace(".json", "");
 
         switch (action) {
-            case "pull":
-                vscode.postMessage({ command: "pullProfile", fileName });
+            case "pull": {
+                // Chỉ hiện items có trong meta.syncKeys của profile
+                const profile = currentState?.profiles?.find(p => p.fileName === fileName);
+                const metaKeys = profile?.syncKeys;
+                const items = metaKeys
+                    ? syncItemsConfig.filter(i => metaKeys.includes(i.key))
+                    : syncItemsConfig;
+                const syncKeys = await showSyncSelect({
+                    title: "Pull Profile",
+                    message: `Pull settings from "${profileName}" to local?`,
+                    icon: "cloud-download",
+                    syncItems: items,
+                    confirmLabel: "Pull",
+                });
+                if (syncKeys) {
+                    vscode.postMessage({ command: "pullProfile", fileName, syncKeys });
+                }
                 break;
-            case "push":
-                vscode.postMessage({ command: "updateProfile", fileName });
+            }
+            case "push": {
+                // Pre-check checkboxes match với meta.syncKeys
+                const profile = currentState?.profiles?.find(p => p.fileName === fileName);
+                const metaKeys = profile?.syncKeys;
+                const items = syncItemsConfig.map(i => ({
+                    ...i,
+                    enabled: metaKeys ? metaKeys.includes(i.key) : i.enabled,
+                }));
+                const syncKeys = await showSyncSelect({
+                    title: "Push Profile",
+                    message: `Push current settings to "${profileName}"?`,
+                    icon: "cloud-upload",
+                    syncItems: items,
+                    confirmLabel: "Push",
+                });
+                if (syncKeys) {
+                    vscode.postMessage({ command: "updateProfile", fileName, syncKeys });
+                }
                 break;
+            }
             case "delete": {
                 const confirmed = await showConfirm({
                     title: "Delete Profile",
@@ -303,6 +436,19 @@
     let currentPage = 1;
 
     function fetchAppDataFiles(folderId, folderName, pageToken) {
+        // Hiện loading state
+        btnRefreshAppdata.classList.add("spinning");
+        appdataEmpty.style.display = "none";
+        appdataTableWrapper.style.display = "none";
+        // Hiện loading placeholder
+        let loadingEl = appdataTableWrapper.parentNode.querySelector(".appdata-loading");
+        if (!loadingEl) {
+            loadingEl = document.createElement("div");
+            loadingEl.className = "appdata-loading profiles-loading";
+            loadingEl.innerHTML = `<span class="spinner"></span><span>Loading files...</span>`;
+            appdataTableWrapper.parentNode.insertBefore(loadingEl, appdataTableWrapper);
+        }
+        loadingEl.style.display = "";
         vscode.postMessage({ command: "listAppData", folderId, folderName, pageToken: pageToken || undefined });
     }
 
@@ -431,6 +577,10 @@
 
     // Render app data files table
     function renderAppDataFiles(files, folderName, newNextPageToken) {
+        btnRefreshAppdata.classList.remove("spinning");
+        // Ẩn loading placeholder
+        const loadingEl = appdataTableWrapper.parentNode.querySelector(".appdata-loading");
+        if (loadingEl) { loadingEl.style.display = "none"; }
         nextPageToken = newNextPageToken || null;
         renderBreadcrumb(folderName);
 
@@ -623,6 +773,122 @@
     // ========================================
     // MESSAGE HANDLER
     // ========================================
+    // SYNC PROGRESS MODAL
+    // ========================================
+
+    let syncModal = null;
+    let syncSteps = [];
+    let syncTotal = 0;
+    let syncCompleted = false;
+
+    /** Show sync progress modal */
+    function showSyncProgress(title) {
+        closeSyncProgress();
+        syncSteps = [];
+        syncTotal = 0;
+        syncCompleted = false;
+
+        const overlay = document.createElement("div");
+        overlay.className = "modal-overlay sync-progress-overlay";
+        overlay.innerHTML = `
+            <div class="modal sync-progress-modal">
+                <div class="modal-header">
+                    <div class="modal-icon codicon codicon-sync sync-spin"></div>
+                    <h3 class="modal-title">${escapeHtml(title)}</h3>
+                </div>
+                <div class="sync-steps" id="sync-steps-container"></div>
+                <div class="sync-progress-bar-container">
+                    <div class="sync-progress-bar" id="sync-progress-bar"></div>
+                </div>
+                <div class="sync-progress-text" id="sync-progress-text">Đang chuẩn bị...</div>
+            </div>
+        `;
+        document.body.appendChild(overlay);
+        overlay.addEventListener("click", (e) => {
+            // Chỉ cho đóng khi sync đã hoàn thành
+            if (e.target === overlay && syncCompleted) { closeSyncProgress(); }
+        });
+        requestAnimationFrame(() => overlay.classList.add("visible"));
+        syncModal = overlay;
+    }
+
+    /** Update a sync step */
+    function updateSyncStep(step, current, total, status) {
+        if (!syncModal) { return; }
+        syncTotal = total;
+
+        // Đảm bảo step tồn tại
+        if (!syncSteps.find(s => s.name === step)) {
+            syncSteps.push({ name: step, status: "pending" });
+        }
+
+        // Cập nhật status
+        const s = syncSteps.find(s => s.name === step);
+        if (s) { s.status = status; }
+
+        renderSyncSteps();
+    }
+
+    /** Render sync steps UI */
+    function renderSyncSteps() {
+        if (!syncModal) { return; }
+
+        const container = syncModal.querySelector("#sync-steps-container");
+        if (container) {
+            container.innerHTML = syncSteps.map(s => {
+                const icon = s.status === "done" ? "codicon-check"
+                    : s.status === "active" ? "codicon-loading sync-spin"
+                    : "codicon-circle-outline";
+                const cls = `sync-step sync-step-${s.status}`;
+                return `<div class="${cls}">
+                    <span class="codicon ${icon}"></span>
+                    <span>${escapeHtml(s.name)}</span>
+                </div>`;
+            }).join("");
+        }
+
+        // Progress bar
+        const done = syncSteps.filter(s => s.status === "done").length;
+        const total = syncTotal || syncSteps.length;
+        const pct = total > 0 ? Math.round((done / total) * 100) : 0;
+        const bar = syncModal.querySelector("#sync-progress-bar");
+        if (bar) { bar.style.width = `${pct}%`; }
+
+        const text = syncModal.querySelector("#sync-progress-text");
+        if (text) { text.textContent = `${done} / ${total} hoàn thành`; }
+    }
+
+    /** Mark sync as complete — show done state */
+    function markSyncDone() {
+        syncCompleted = true;
+        if (!syncModal) { return; }
+
+        // Đổi icon header thành check
+        const icon = syncModal.querySelector(".modal-icon");
+        if (icon) {
+            icon.className = "modal-icon codicon codicon-check";
+            icon.style.color = "var(--ag-accent)";
+        }
+
+        // Tự đóng sau 800ms
+        setTimeout(() => closeSyncProgress(), 800);
+    }
+
+    /** Close sync progress modal */
+    function closeSyncProgress() {
+        if (syncModal) {
+            const el = syncModal;
+            el.classList.remove("visible");
+            setTimeout(() => el.remove(), 200);
+            syncModal = null;
+            syncSteps = [];
+            syncCompleted = false;
+        }
+    }
+
+    // ========================================
+    // MESSAGE HANDLER
+    // ========================================
 
     window.addEventListener("message", (event) => {
         const msg = event.data;
@@ -637,6 +903,46 @@
             case "toast":
                 showToast(msg.level, msg.message);
                 break;
+            case "syncStart":
+                showSyncProgress(msg.title);
+                break;
+            case "syncProgress":
+                updateSyncStep(msg.step, msg.current, msg.total, msg.status);
+                break;
+            case "syncDone":
+                markSyncDone();
+                break;
+            case "askExtensionSync": {
+                const installList = (msg.toInstall || []);
+                const deleteList = (msg.toDelete || []);
+                let details = `Sync sẽ cài ${installList.length} và gỡ ${deleteList.length} extensions.\n\n`;
+                if (installList.length > 0) {
+                    details += `📥 Cài đặt:\n${installList.map(id => `  • ${id}`).join("\n")}\n\n`;
+                }
+                if (deleteList.length > 0) {
+                    details += `🗑️ Gỡ bỏ:\n${deleteList.map(id => `  • ${id}`).join("\n")}`;
+                }
+                showConfirm({
+                    title: "Extension Sync",
+                    message: details,
+                    icon: "extensions",
+                    confirmLabel: "Đồng ý",
+                    cancelLabel: "Bỏ qua",
+                    variant: "accent",
+                }).then((confirmed) => {
+                    if (confirmed) {
+                        vscode.postMessage({
+                            command: "applyExtensionSync",
+                            toInstall: installList,
+                            toDelete: deleteList,
+                        });
+                    } else {
+                        // Bỏ qua extension sync — vẫn hỏi reload cho settings/keybindings
+                        vscode.postMessage({ command: "reloadWindow" });
+                    }
+                });
+                break;
+            }
             case "askReload":
                 showConfirm({
                     title: "Reload Required",
@@ -656,6 +962,14 @@
                 break;
             case "filePreview":
                 showFilePreview(msg.fileName, msg.content);
+                break;
+            case "profiles":
+                // Pha 2: Cập nhật profiles sau khi load xong
+                if (currentState) {
+                    currentState.profiles = msg.data || [];
+                }
+                renderProfiles(msg.data || []);
+                btnRefresh.classList.remove("spinning");
                 break;
         }
     });
@@ -678,6 +992,9 @@
         dashboardSection.style.display = "";
         appdataSection.style.display = "";
 
+        // Lưu sync items config từ backend
+        syncItemsConfig = state.syncItems || [];
+
         // Header user info
         const avatarHtml = state.picture
             ? `<img class="avatar avatar-sm" src="${escapeAttr(state.picture)}" alt="" />`
@@ -699,10 +1016,24 @@
             `;
         }
 
-        // Profiles
-        renderProfiles(state.profiles || []);
+        // Profiles: null = đang loading, [] = rỗng, [...] = có data
+        if (state.profiles === null) {
+            // Hiện loading spinner + xoay nút refresh
+            profileCount.textContent = "...";
+            profilesList.innerHTML = `
+                <div class="profiles-loading">
+                    <span class="spinner"></span>
+                    <span>Loading profiles...</span>
+                </div>
+            `;
+            profilesEmpty.style.display = "none";
+            btnRefresh.classList.add("spinning");
+        } else {
+            renderProfiles(state.profiles || []);
+        }
 
         // Auto-load app data files on first state
+        btnRefreshAppdata.classList.add("spinning");
         pageTokenStack = []; currentPageToken = null; nextPageToken = null; currentPage = 1;
         fetchAppDataFiles(currentFolderId, null, null);
     }

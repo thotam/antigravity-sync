@@ -11,12 +11,19 @@ Sync your **Antigravity** settings, extensions, and keybindings across devices u
 ## Features
 
 - **Full Dashboard UI** — Modern webview panel with account info, profile management, and quick actions
+- **Folder-based Profiles** — Each profile stored as a dedicated folder with separate config files for easy extensibility
+- **Sync Item Selection** — Choose which items to sync (Settings, Extensions, Keybindings) per operation with checkbox modals
+- **Sync Progress Modal** — Real-time step-by-step progress with animated progress bar during sync operations
+- **Extension Sync Confirm** — In-webview modal showing extensions to install/remove before applying
+- **Progressive Loading** — Dashboard appears instantly, data loads progressively with spinners
 - **App Data Explorer** — Browse files/folders in Google Drive appDataFolder with folder navigation, file preview, and pagination
 - **Google Drive Storage** — Data stored securely in a hidden app-specific folder
 - **One-Click Sync** — Push or pull your entire configuration in seconds
 - **Cross-Platform** — Windows, macOS, and Linux
 - **Secure** — Google OAuth 2.0, tokens encrypted by OS via SecretStorage
 - **Google Avatar** — Display your Google profile picture in the dashboard
+
+> 📄 See [FEATURES.md](FEATURES.md) for detailed feature documentation.
 
 ### What Gets Synced
 
@@ -166,6 +173,16 @@ src/
 ```
 
 ## Release Notes
+
+### 0.5.0 (2026-03-08)
+
+- 📂 **Folder-based Profiles** — Each profile is a folder with `meta.json`, `settings.json`, `extensions.json`, `keybindings.json`
+- ☑️ **Sync Item Selection** — Choose Settings/Extensions/Keybindings per create/push/pull via checkbox modals
+- ⏳ **Sync Progress Modal** — Step-by-step progress display with animated bar during create/push/pull
+- 🧩 **Extension Sync Confirm** — In-webview modal listing extensions to install/remove
+- ⚡ **Progressive Loading** — Dashboard appears instantly, profiles and files load progressively
+- 📊 **Root Sync Meta** — Central `sync-meta.json` for fast profile listing (2 API calls vs N+1)
+- ⚠️ **Breaking**: Profiles from v0.4.0 are incompatible — delete and recreate
 
 ### 0.4.0 (2026-03-08)
 

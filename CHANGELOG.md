@@ -1,5 +1,28 @@
 # Changelog
 
+## [0.5.0] - 2026-03-08
+
+### Added
+- **Folder-based Profile Storage** — Each profile is now stored as a dedicated folder containing `meta.json`, `settings.json`, `extensions.json`, and `keybindings.json`
+- **Sync Progress Modal** — Real-time progress display with step-by-step status (pending → active → done), animated progress bar, and auto-close on completion
+- **Extension Sync Confirm Modal** — In-webview modal listing extensions to install/remove before applying, replaces native VS Code dialog
+- **Sync Item Selection** — Choose which items to sync (Settings, Extensions, Keybindings) when creating, pushing, or pulling profiles via checkbox modals
+- **Extensible Sync Architecture** — `ISyncItem` registry pattern allowing easy addition of new sync data types in the future
+- **Root Sync Meta** — Central `sync-meta.json` at root appDataFolder for fast profile listing (2 API calls instead of N+1)
+- **Progressive UI Loading** — Dashboard UI appears immediately, profiles and app data load progressively with loading spinners
+- `FEATURES.md` — Comprehensive feature documentation
+
+### Changed
+- Profile storage restructured from single `.json` files to folder-based layout for better extensibility
+- App Data Explorer now correctly shows only direct children at root level
+- Extension sync confirmation moved from native OS dialog to themed webview modal with detailed extension list
+- Sync progress modal is locked during operation (cannot be dismissed until complete or error)
+- Refresh buttons now spin during data loading and stop when complete
+- App Data Explorer shows loading placeholder when fetching files
+
+### Breaking Changes
+- ⚠️ **Profiles created in v0.4.0 or earlier are incompatible** — Please delete old profiles and recreate them
+
 ## [0.4.0] - 2026-03-08
 
 ### Added

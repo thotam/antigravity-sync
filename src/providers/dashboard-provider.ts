@@ -3,7 +3,8 @@
 
 import * as vscode from "vscode";
 import GoogleAuth from "../core/google-auth";
-import GoogleDriveService from "../core/google-drive";
+import GoogleDriveService, { ProgressCallback } from "../core/google-drive";
+import { DEFAULT_SYNC_ITEMS, ISyncItem } from "../models/interfaces";
 import SyncController from "../core/sync-controller";
 import Logger from "../core/logger";
 
@@ -12,7 +13,8 @@ interface DashboardState {
     isAuthenticated: boolean;
     email?: string;
     picture?: string;
-    profiles: Array<{ name: string; fileName: string; modifiedTime?: string }>;
+    profiles: Array<{ name: string; fileName: string; modifiedTime?: string; syncKeys?: string[] }> | null;
+    syncItems: ISyncItem[];
 }
 
 /** Message from webview to extension */
@@ -25,6 +27,9 @@ interface WebviewMessage {
     folderName?: string;
     fileId?: string;
     pageToken?: string;
+    toInstall?: string[];
+    toDelete?: string[];
+    syncKeys?: string[];  // Keys được chọn sync từ UI
 }
 
 export default class DashboardProvider {
@@ -108,7 +113,6 @@ export default class DashboardProvider {
             const isAuthenticated = await this.auth.isAuthenticated();
             let email: string | undefined;
             let picture: string | undefined;
-            let profiles: DashboardState["profiles"] = [];
 
             if (isAuthenticated) {
                 try {
@@ -123,14 +127,23 @@ export default class DashboardProvider {
                         error
                     );
                 }
+            }
 
+            // Pha 1: Gửi state ngay với profiles: null (đang loading)
+            const state: DashboardState = { isAuthenticated, email, picture, profiles: null, syncItems: DEFAULT_SYNC_ITEMS };
+            this.panel.webview.postMessage({ type: "state", data: state });
+
+            // Pha 2: Load profiles rồi gửi cập nhật
+            if (isAuthenticated) {
                 try {
-                    const files = await this.drive.listProfiles();
-                    profiles = files.map((f) => ({
-                        name: f.name.replace(".json", ""),
+                    const folders = await this.drive.listProfiles();
+                    const profiles = folders.map((f) => ({
+                        name: f.name,
                         fileName: f.name,
                         modifiedTime: f.modifiedTime,
+                        syncKeys: f.syncKeys,
                     }));
+                    this.panel?.webview.postMessage({ type: "profiles", data: profiles });
                 } catch (error) {
                     this.logger.error(
                         "Failed to load profiles list",
@@ -138,11 +151,10 @@ export default class DashboardProvider {
                         false,
                         error
                     );
+                    // Gửi profiles rỗng nếu lỗi — bỏ trạng thái loading
+                    this.panel?.webview.postMessage({ type: "profiles", data: [] });
                 }
             }
-
-            const state: DashboardState = { isAuthenticated, email, picture, profiles };
-            this.panel.webview.postMessage({ type: "state", data: state });
         } catch (error) {
             this.logger.error(
                 "Failed to update dashboard state",
@@ -160,6 +172,9 @@ export default class DashboardProvider {
         };
         const sendToast = (level: "info" | "success" | "error", text: string) => {
             this.panel?.webview.postMessage({ type: "toast", level, message: text });
+        };
+        const sendProgress: ProgressCallback = (step, current, total, status) => {
+            this.panel?.webview.postMessage({ type: "syncProgress", step, current, total, status });
         };
 
         try {
@@ -188,14 +203,16 @@ export default class DashboardProvider {
 
                 case "createProfile": {
                     if (!message.name) { return; }
+                    const syncItems = DEFAULT_SYNC_ITEMS.map(item => ({
+                        ...item,
+                        enabled: message.syncKeys ? message.syncKeys.includes(item.key) : item.enabled,
+                    }));
                     sendLoading("createProfile", true);
-                    const current = await this.controller.getActiveProfile();
-                    await this.drive.saveProfile({
-                        profileName: message.name,
-                        settings: current.settings!,
-                        extensions: current.extensions!,
-                        keybindings: current.keybindings!,
-                    });
+                    this.panel?.webview.postMessage({ type: "syncStart", title: `Creating "${message.name}"` });
+                    const current = await this.controller.getActiveProfile(syncItems);
+                    current.profileName = message.name;
+                    await this.drive.saveProfile(current, syncItems, sendProgress);
+                    this.panel?.webview.postMessage({ type: "syncDone" });
                     await this.refreshState();
                     sendLoading("createProfile", false);
                     sendToast("success", `Profile "${message.name}" created`);
@@ -204,46 +221,84 @@ export default class DashboardProvider {
 
                 case "pullProfile": {
                     if (!message.fileName) { return; }
-                    sendLoading(`pull-${message.fileName}`, true);
-                    const profile = await this.drive.getProfile(message.fileName);
+                    const profileName = message.fileName;
+                    const syncItems = DEFAULT_SYNC_ITEMS.map(item => ({
+                        ...item,
+                        enabled: message.syncKeys ? message.syncKeys.includes(item.key) : item.enabled,
+                    }));
+                    sendLoading(`pull-${profileName}`, true);
+                    this.panel?.webview.postMessage({ type: "syncStart", title: `Pulling "${profileName}"` });
+                    const profile = await this.drive.getProfile(profileName, syncItems, sendProgress);
                     if (!profile) {
+                        this.panel?.webview.postMessage({ type: "syncDone" });
                         sendToast("error", "Profile data is empty");
-                        sendLoading(`pull-${message.fileName}`, false);
+                        sendLoading(`pull-${profileName}`, false);
                         return;
                     }
-                    await this.controller.updateLocalProfile(profile);
-                    sendLoading(`pull-${message.fileName}`, false);
-                    sendToast("success", `Profile "${message.fileName.replace(".json", "")}" pulled`);
+                    await this.controller.updateLocalProfile(profile, syncItems);
+                    this.panel?.webview.postMessage({ type: "syncDone" });
+                    sendLoading(`pull-${profileName}`, false);
 
-                    // Ask user to reload via webview modal
-                    this.panel?.webview.postMessage({ type: "askReload" });
+                    // Check extension diff chỉ khi extensions được chọn
+                    const extEnabled = syncItems.find(i => i.key === "extensions")?.enabled;
+                    const extData = profile.data.extensions;
+                    if (extEnabled && extData && Array.isArray(extData)) {
+                        const diff = this.controller.getExtensionDiff(extData);
+                        if (diff.toInstall.length > 0 || diff.toDelete.length > 0) {
+                            this.panel?.webview.postMessage({
+                                type: "askExtensionSync",
+                                toInstall: diff.toInstall,
+                                toDelete: diff.toDelete,
+                            });
+                        } else {
+                            sendToast("success", `Profile "${profileName}" pulled`);
+                            this.panel?.webview.postMessage({ type: "askReload" });
+                        }
+                    } else {
+                        sendToast("success", `Profile "${profileName}" pulled`);
+                        this.panel?.webview.postMessage({ type: "askReload" });
+                    }
+                    break;
+                }
+
+                case "applyExtensionSync": {
+                    const { toInstall, toDelete } = message;
+                    sendLoading("extensionSync", true);
+                    const needsReload = await this.controller.applyExtensionSync(toInstall || [], toDelete || []);
+                    sendLoading("extensionSync", false);
+                    sendToast("success", "Extensions synced");
+                    if (needsReload) {
+                        this.panel?.webview.postMessage({ type: "askReload" });
+                    }
                     break;
                 }
 
                 case "updateProfile": {
                     if (!message.fileName) { return; }
-                    const profileName = message.fileName.replace(".json", "");
-                    sendLoading(`push-${message.fileName}`, true);
-                    const current = await this.controller.getActiveProfile();
-                    await this.drive.saveProfile({
-                        profileName,
-                        settings: current.settings!,
-                        extensions: current.extensions!,
-                        keybindings: current.keybindings!,
-                    });
+                    const profileName = message.fileName;
+                    const syncItems = DEFAULT_SYNC_ITEMS.map(item => ({
+                        ...item,
+                        enabled: message.syncKeys ? message.syncKeys.includes(item.key) : item.enabled,
+                    }));
+                    sendLoading(`push-${profileName}`, true);
+                    this.panel?.webview.postMessage({ type: "syncStart", title: `Pushing "${profileName}"` });
+                    const current = await this.controller.getActiveProfile(syncItems);
+                    current.profileName = profileName;
+                    await this.drive.saveProfile(current, syncItems, sendProgress);
+                    this.panel?.webview.postMessage({ type: "syncDone" });
                     await this.refreshState();
-                    sendLoading(`push-${message.fileName}`, false);
+                    sendLoading(`push-${profileName}`, false);
                     sendToast("success", `Profile "${profileName}" updated`);
                     break;
                 }
 
                 case "deleteProfile": {
                     if (!message.fileName) { return; }
-                    const profileName = message.fileName.replace(".json", "");
-                    sendLoading(`delete-${message.fileName}`, true);
+                    const profileName = message.fileName;
+                    sendLoading(`delete-${profileName}`, true);
                     await this.drive.deleteProfile(profileName);
                     await this.refreshState();
-                    sendLoading(`delete-${message.fileName}`, false);
+                    sendLoading(`delete-${profileName}`, false);
                     sendToast("success", `Profile "${profileName}" deleted`);
                     break;
                 }
@@ -318,6 +373,8 @@ export default class DashboardProvider {
                 true,
                 error
             );
+            // Đóng sync modal nếu đang mở (cho phép đóng khi lỗi)
+            this.panel?.webview.postMessage({ type: "syncDone" });
             sendLoading(message.command, false);
             sendToast("error", error?.message || "An error occurred");
         }
