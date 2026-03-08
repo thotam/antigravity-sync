@@ -1,16 +1,16 @@
-// TypeScript interfaces cho Antigravity Sync
+// TypeScript interfaces for Antigravity Sync
 // Extensible sync architecture with SyncItem registry
 
-/** Định nghĩa một mục sync — registry pattern */
+/** Defines a sync item — registry pattern */
 export interface ISyncItem {
     key: string;           // "settings" | "extensions" | "keybindings" | ...
     fileName: string;      // "settings.json", "extensions.json", ...
-    label: string;         // Tên hiển thị cho UI
+    label: string;         // Display name for UI
     icon: string;          // Codicon name
-    enabled: boolean;      // Mặc định có sync không
+    enabled: boolean;      // Sync by default
 }
 
-/** Registry mặc định — thêm data type mới chỉ cần thêm entry */
+/** Default registry — add new data types by adding entries */
 export const DEFAULT_SYNC_ITEMS: ISyncItem[] = [
     { key: "settings",    fileName: "settings.json",    label: "Settings",    icon: "settings-gear", enabled: true },
     { key: "extensions",  fileName: "extensions.json",  label: "Extensions",  icon: "extensions",    enabled: true },
@@ -23,7 +23,7 @@ export interface IProfileMeta {
     name: string;
     createdAt: string;  // ISO 8601
     updatedAt: string;  // ISO 8601
-    syncKeys: string[]; // Keys đã sync: ["settings", "extensions", "keybindings"]
+    syncKeys: string[]; // Synced keys: ["settings", "extensions", "keybindings"]
 }
 
 /** Full profile data — dynamic, keyed by ISyncItem.key */
@@ -32,6 +32,6 @@ export interface IProfile {
     data: Record<string, any>;  // { settings: {...}, extensions: [...], keybindings: [...] }
 }
 
-/** Root sync-meta.json — lưu syncKeys tất cả profiles ở root appDataFolder */
+/** Root sync-meta.json — stores syncKeys for all profiles at root appDataFolder */
 export type ISyncMeta = Record<string, string[]>;
 // { "work": ["settings", "extensions"], "home": ["settings"] }

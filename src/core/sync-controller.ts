@@ -141,7 +141,7 @@ export default class SyncController {
         return { profileName: "", data };
     }
 
-    /** Write config based on enabled sync items (không sync extension — provider xử lý riêng) */
+    /** Write config based on enabled sync items (extensions handled by provider separately) */
     public async updateLocalProfile(profile: IProfile, syncItems: ISyncItem[]) {
         for (const item of syncItems.filter(i => i.enabled)) {
             switch (item.key) {
@@ -165,7 +165,7 @@ export default class SyncController {
                     }
                     break;
                 }
-                // extensions xử lý bởi provider (qua getExtensionDiff + applyExtensionSync)
+                // extensions handled by provider (via getExtensionDiff + applyExtensionSync)
                 default:
                     break;
             }
@@ -267,7 +267,7 @@ export default class SyncController {
         this.logger.info(`Snippets synced: ${Object.keys(bundle).length} file(s)`);
     }
 
-    /** Compare local vs remote extensions — trả về diff để provider confirm */
+    /** Compare local vs remote extensions — returns diff for provider confirmation */
     public getExtensionDiff(remoteList: string[]): { toInstall: string[]; toDelete: string[] } {
         const localList = this.getExtensions();
         const localSet = new Set(localList);
@@ -279,7 +279,7 @@ export default class SyncController {
         };
     }
 
-    /** Apply extension sync — install/uninstall without confirm (provider đã confirm) */
+    /** Apply extension sync — install/uninstall without confirm (provider already confirmed) */
     public async applyExtensionSync(toInstall: string[], toDelete: string[]): Promise<boolean> {
         let needsReload = false;
 

@@ -29,7 +29,7 @@ interface WebviewMessage {
     pageToken?: string;
     toInstall?: string[];
     toDelete?: string[];
-    syncKeys?: string[];  // Keys được chọn sync từ UI
+    syncKeys?: string[];  // Selected sync keys from UI
 }
 
 export default class DashboardProvider {
@@ -129,11 +129,11 @@ export default class DashboardProvider {
                 }
             }
 
-            // Pha 1: Gửi state ngay với profiles: null (đang loading)
+            // Phase 1: Send state immediately with profiles: null (loading)
             const state: DashboardState = { isAuthenticated, email, picture, profiles: null, syncItems: DEFAULT_SYNC_ITEMS };
             this.panel.webview.postMessage({ type: "state", data: state });
 
-            // Pha 2: Load profiles rồi gửi cập nhật
+            // Phase 2: Load profiles then send update
             if (isAuthenticated) {
                 try {
                     const folders = await this.drive.listProfiles();
@@ -151,7 +151,7 @@ export default class DashboardProvider {
                         false,
                         error
                     );
-                    // Gửi profiles rỗng nếu lỗi — bỏ trạng thái loading
+                    // Send empty profiles on error — clear loading state
                     this.panel?.webview.postMessage({ type: "profiles", data: [] });
                 }
             }
@@ -239,7 +239,7 @@ export default class DashboardProvider {
                     this.panel?.webview.postMessage({ type: "syncDone" });
                     sendLoading(`pull-${profileName}`, false);
 
-                    // Check extension diff chỉ khi extensions được chọn
+                    // Check extension diff only when extensions is selected
                     const extEnabled = syncItems.find(i => i.key === "extensions")?.enabled;
                     const extData = profile.data.extensions;
                     if (extEnabled && extData && Array.isArray(extData)) {
@@ -373,7 +373,7 @@ export default class DashboardProvider {
                 true,
                 error
             );
-            // Đóng sync modal nếu đang mở (cho phép đóng khi lỗi)
+            // Close sync modal if open (allow dismissal on error)
             this.panel?.webview.postMessage({ type: "syncDone" });
             sendLoading(message.command, false);
             sendToast("error", error?.message || "An error occurred");

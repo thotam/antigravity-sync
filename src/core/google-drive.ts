@@ -37,7 +37,7 @@ export interface ProfileFolder {
     id: string;
     name: string;
     modifiedTime?: string;
-    syncKeys?: string[];  // Từ meta.json
+    syncKeys?: string[];  // From meta.json
 }
 
 /** Progress callback for sync operations */
@@ -74,7 +74,7 @@ export default class GoogleDriveService {
             modifiedTime: f.modifiedTime,
         }));
 
-        // Đọc sync-meta.json từ root (1 API call thay vì N)
+        // Read sync-meta.json from root (1 API call instead of N)
         const syncMeta = await this.getSyncMeta();
         return folders.map(f => ({
             ...f,
@@ -88,7 +88,7 @@ export default class GoogleDriveService {
         const steps = ["Finding Profile", ...enabledItems.map(i => `Downloading ${i.label}`)];
         let stepIdx = 0;
 
-        // Emit tất cả steps pending trước
+        // Emit all steps as pending first
         if (onProgress) {
             for (let i = 0; i < steps.length; i++) {
                 onProgress(steps[i], i, steps.length, "pending");
@@ -134,7 +134,7 @@ export default class GoogleDriveService {
             : [...enabledItems.map(i => `Uploading ${i.label}`), "Updating Metadata"];
         let stepIdx = 0;
 
-        // Emit tất cả steps pending trước
+        // Emit all steps as pending first
         if (onProgress) {
             for (let i = 0; i < steps.length; i++) {
                 onProgress(steps[i], i, steps.length, "pending");
@@ -163,7 +163,7 @@ export default class GoogleDriveService {
             } as IProfileMeta, null, 2));
             onProgress?.(metaLabel, stepIdx++, steps.length, "done");
 
-            // Cập nhật sync-meta.json ở root
+            // Update sync-meta.json at root
             await this.updateSyncMeta(profile.profileName, syncKeys);
             this.logger.info(`Profile created: ${profile.profileName}`);
         } else {
@@ -207,7 +207,7 @@ export default class GoogleDriveService {
             }
             onProgress?.(metaLabel, stepIdx++, steps.length, "done");
 
-            // Cập nhật sync-meta.json ở root
+            // Update sync-meta.json at root
             await this.updateSyncMeta(profile.profileName, syncKeys);
             this.logger.info(`Profile updated: ${profile.profileName}`);
         }
@@ -220,7 +220,7 @@ export default class GoogleDriveService {
             throw new Error(`Profile "${profileName}" not found`);
         }
         await this.deleteFile(folder.id);
-        // Cập nhật sync-meta.json: xóa entry
+        // Update sync-meta.json: remove entry
         await this.updateSyncMeta(profileName);
         this.logger.info(`Profile deleted: ${profileName}`);
     }
@@ -268,7 +268,7 @@ export default class GoogleDriveService {
 
     // ===== Sync Meta (root-level) =====
 
-    /** Tìm file theo tên ở root appDataFolder */
+    /** Find file by name at root appDataFolder */
     private async findRootFile(name: string): Promise<DriveFile | null> {
         const token = await this.auth.getAccessToken();
         const params = new URLSearchParams({
@@ -281,7 +281,7 @@ export default class GoogleDriveService {
         return result.files?.[0] || null;
     }
 
-    /** Đọc sync-meta.json từ root */
+    /** Read sync-meta.json from root */
     private async getSyncMeta(): Promise<ISyncMeta> {
         try {
             const file = await this.findRootFile("sync-meta.json");
@@ -293,7 +293,7 @@ export default class GoogleDriveService {
         }
     }
 
-    /** Cập nhật hoặc xóa entry trong sync-meta.json */
+    /** Update or remove entry in sync-meta.json */
     private async updateSyncMeta(profileName: string, syncKeys?: string[]): Promise<void> {
         try {
             const meta = await this.getSyncMeta();
@@ -307,7 +307,7 @@ export default class GoogleDriveService {
             if (file) {
                 await this.updateFile(file.id, content);
             } else {
-                // Tạo mới sync-meta.json ở root
+                // Create new sync-meta.json at root
                 const token = await this.auth.getAccessToken();
                 const metadata = JSON.stringify({ name: "sync-meta.json", parents: ["appDataFolder"] });
                 const boundary = "sync_meta_boundary";

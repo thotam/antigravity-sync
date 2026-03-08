@@ -25,7 +25,7 @@
 
     // === State ===
     let currentState = null;
-    let syncItemsConfig = [];  // Từ backend DEFAULT_SYNC_ITEMS
+    let syncItemsConfig = [];  // From backend DEFAULT_SYNC_ITEMS
 
     // ========================================
     // MODAL SYSTEM
@@ -358,7 +358,7 @@
 
         switch (action) {
             case "pull": {
-                // Chỉ hiện items có trong meta.syncKeys của profile
+                // Only show items present in meta.syncKeys of the profile
                 const profile = currentState?.profiles?.find(p => p.fileName === fileName);
                 const metaKeys = profile?.syncKeys;
                 const items = metaKeys
@@ -377,7 +377,7 @@
                 break;
             }
             case "push": {
-                // Pre-check checkboxes match với meta.syncKeys
+                // Pre-check checkboxes matching meta.syncKeys
                 const profile = currentState?.profiles?.find(p => p.fileName === fileName);
                 const metaKeys = profile?.syncKeys;
                 const items = syncItemsConfig.map(i => ({
@@ -436,11 +436,11 @@
     let currentPage = 1;
 
     function fetchAppDataFiles(folderId, folderName, pageToken) {
-        // Hiện loading state
+        // Show loading state
         btnRefreshAppdata.classList.add("spinning");
         appdataEmpty.style.display = "none";
         appdataTableWrapper.style.display = "none";
-        // Hiện loading placeholder
+        // Show loading placeholder
         let loadingEl = appdataTableWrapper.parentNode.querySelector(".appdata-loading");
         if (!loadingEl) {
             loadingEl = document.createElement("div");
@@ -578,7 +578,7 @@
     // Render app data files table
     function renderAppDataFiles(files, folderName, newNextPageToken) {
         btnRefreshAppdata.classList.remove("spinning");
-        // Ẩn loading placeholder
+        // Hide loading placeholder
         const loadingEl = appdataTableWrapper.parentNode.querySelector(".appdata-loading");
         if (loadingEl) { loadingEl.style.display = "none"; }
         nextPageToken = newNextPageToken || null;
@@ -800,12 +800,12 @@
                 <div class="sync-progress-bar-container">
                     <div class="sync-progress-bar" id="sync-progress-bar"></div>
                 </div>
-                <div class="sync-progress-text" id="sync-progress-text">Đang chuẩn bị...</div>
+                <div class="sync-progress-text" id="sync-progress-text">Preparing...</div>
             </div>
         `;
         document.body.appendChild(overlay);
         overlay.addEventListener("click", (e) => {
-            // Chỉ cho đóng khi sync đã hoàn thành
+            // Only allow closing when sync has completed
             if (e.target === overlay && syncCompleted) { closeSyncProgress(); }
         });
         requestAnimationFrame(() => overlay.classList.add("visible"));
@@ -817,12 +817,12 @@
         if (!syncModal) { return; }
         syncTotal = total;
 
-        // Đảm bảo step tồn tại
+        // Ensure step exists
         if (!syncSteps.find(s => s.name === step)) {
             syncSteps.push({ name: step, status: "pending" });
         }
 
-        // Cập nhật status
+        // Update status
         const s = syncSteps.find(s => s.name === step);
         if (s) { s.status = status; }
 
@@ -855,7 +855,7 @@
         if (bar) { bar.style.width = `${pct}%`; }
 
         const text = syncModal.querySelector("#sync-progress-text");
-        if (text) { text.textContent = `${done} / ${total} hoàn thành`; }
+        if (text) { text.textContent = `${done} / ${total} completed`; }
     }
 
     /** Mark sync as complete — show done state */
@@ -863,14 +863,14 @@
         syncCompleted = true;
         if (!syncModal) { return; }
 
-        // Đổi icon header thành check
+        // Change header icon to check
         const icon = syncModal.querySelector(".modal-icon");
         if (icon) {
             icon.className = "modal-icon codicon codicon-check";
             icon.style.color = "var(--ag-accent)";
         }
 
-        // Tự đóng sau 800ms
+        // Auto-close after 800ms
         setTimeout(() => closeSyncProgress(), 800);
     }
 
@@ -915,19 +915,19 @@
             case "askExtensionSync": {
                 const installList = (msg.toInstall || []);
                 const deleteList = (msg.toDelete || []);
-                let details = `Sync sẽ cài ${installList.length} và gỡ ${deleteList.length} extensions.\n\n`;
+                let details = `Sync will install ${installList.length} and remove ${deleteList.length} extensions.\n\n`;
                 if (installList.length > 0) {
-                    details += `📥 Cài đặt:\n${installList.map(id => `  • ${id}`).join("\n")}\n\n`;
+                    details += `📥 Install:\n${installList.map(id => `  • ${id}`).join("\n")}\n\n`;
                 }
                 if (deleteList.length > 0) {
-                    details += `🗑️ Gỡ bỏ:\n${deleteList.map(id => `  • ${id}`).join("\n")}`;
+                    details += `🗑️ Remove:\n${deleteList.map(id => `  • ${id}`).join("\n")}`;
                 }
                 showConfirm({
                     title: "Extension Sync",
                     message: details,
                     icon: "extensions",
-                    confirmLabel: "Đồng ý",
-                    cancelLabel: "Bỏ qua",
+                    confirmLabel: "Apply",
+                    cancelLabel: "Skip",
                     variant: "accent",
                 }).then((confirmed) => {
                     if (confirmed) {
@@ -937,7 +937,7 @@
                             toDelete: deleteList,
                         });
                     } else {
-                        // Bỏ qua extension sync — vẫn hỏi reload cho settings/keybindings
+                        // Skip extension sync — still ask reload for settings/keybindings
                         vscode.postMessage({ command: "reloadWindow" });
                     }
                 });
@@ -964,7 +964,7 @@
                 showFilePreview(msg.fileName, msg.content);
                 break;
             case "profiles":
-                // Pha 2: Cập nhật profiles sau khi load xong
+                // Phase 2: Update profiles after loading completes
                 if (currentState) {
                     currentState.profiles = msg.data || [];
                 }
@@ -992,7 +992,7 @@
         dashboardSection.style.display = "";
         appdataSection.style.display = "";
 
-        // Lưu sync items config từ backend
+        // Save sync items config from backend
         syncItemsConfig = state.syncItems || [];
 
         // Header user info
@@ -1016,9 +1016,9 @@
             `;
         }
 
-        // Profiles: null = đang loading, [] = rỗng, [...] = có data
+        // Profiles: null = loading, [] = empty, [...] = has data
         if (state.profiles === null) {
-            // Hiện loading spinner + xoay nút refresh
+            // Show loading spinner + spin refresh button
             profileCount.textContent = "...";
             profilesList.innerHTML = `
                 <div class="profiles-loading">
