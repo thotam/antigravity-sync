@@ -5,3 +5,7 @@ dist/
 .vscode-test/
 .env
 .gitnexus
+.claude/
+AGENTS.md
+CLAUDE.md
+
