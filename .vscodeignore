@@ -9,3 +9,7 @@ tsconfig.json
 webpack.config.js
 package-lock.json
 *.map
+.gitnexus/**
+.claude/**
+AGENTS.md
+CLAUDE.md

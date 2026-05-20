@@ -1,5 +1,14 @@
 # Changelog
 
+## [0.7.0] - 2026-05-20
+
+### Added
+- **Antigravity IDE 2.0+ Support** — Fully compatible with Google's major IDE update
+
+### Changed
+- **Config Storage Path** — Migrated config paths to `Antigravity IDE` instead of `Antigravity` to match version 2.0+ specifications
+- **IDE Detection** — Updated app recognition to support the new `"Antigravity IDE"` identifier exclusively
+
 ## [0.6.0] - 2026-03-08
 
 ### Added

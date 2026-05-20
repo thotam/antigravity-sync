@@ -77,9 +77,9 @@ export default class SyncController {
         return null;
     }
 
-    /** Return possible config paths for a relative path (file or directory) */
+    /** Trả về danh sách các đường dẫn cấu hình khả dĩ cho tệp hoặc thư mục tương đối */
     private static getConfigPaths(relativePath: string): string[] {
-        const appName = "Antigravity";
+        const appName = "Antigravity IDE";
         switch (os.platform()) {
             case "win32":
                 return [

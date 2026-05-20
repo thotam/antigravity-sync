@@ -17,8 +17,8 @@ export async function activate(ctx: vscode.ExtensionContext) {
         logger = new Logger();
         logger.info("Extension activation started");
 
-        // Only support Antigravity IDE
-        if (vscode.env.appName !== "Antigravity") {
+        // Chỉ hỗ trợ Antigravity IDE 2.0+
+        if (vscode.env.appName !== "Antigravity IDE") {
             vscode.window.showWarningMessage(
                 `Antigravity Sync is designed exclusively for Antigravity IDE. ` +
                 `You are currently using "${vscode.env.appName}". ` +
