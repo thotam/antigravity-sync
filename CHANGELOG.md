@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.1] - 2026-05-21
+
+### Fixed
+- **Google Client Credentials** — Resolved an issue where GOOGLE_CLIENT_ID and GOOGLE_CLIENT_SECRET were missing from the built package due to a missing environmental setup during the build process
+
 ## [0.7.0] - 2026-05-20
 
 ### Added
