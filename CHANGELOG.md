@@ -1,5 +1,11 @@
 # Changelog
 
+## [0.7.2] - 2026-05-23
+
+### Fixed
+- **Stale Config Path Cache** — Fixed a critical bug where cached config paths from legacy `Antigravity` (pre-2.0) were never invalidated after migrating to `Antigravity IDE` 2.0+, causing sync operations to silently read/write to the old directory instead of the new one
+- **Path Validation on Startup** — Added `isPathStale()` check during initialization to automatically detect and re-resolve config paths that point to the legacy `Antigravity/User/` directory or no longer exist on disk
+
 ## [0.7.1] - 2026-05-21
 
 ### Fixed

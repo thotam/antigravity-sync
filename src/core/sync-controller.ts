@@ -1,5 +1,5 @@
-// SyncController — Read/write Antigravity config files
-// Simplified: only supports Antigravity
+// SyncController — Read/write Antigravity IDE config files
+// Only supports Antigravity IDE 2.0+
 
 import { readFile, readdir, mkdir, writeFile } from "fs/promises";
 import * as os from "os";
@@ -30,8 +30,19 @@ export default class SyncController {
         logger: Logger,
         context: ExtensionContext
     ): Promise<SyncController | undefined> {
-        // Try to auto-detect config file paths
+        // Xác minh và tìm đường dẫn cấu hình cho settings.json & keybindings.json
         for (const fileType of ["settings", "keybindings"] as const) {
+            const cachedPath: string | undefined = context.globalState.get(`${fileType}Path`);
+
+            // Xác minh đường dẫn đã cache: xóa nếu trỏ sai thư mục hoặc file không tồn tại
+            if (cachedPath) {
+                const isStale = await SyncController.isPathStale(cachedPath, logger);
+                if (isStale) {
+                    logger.info(`Cached path is stale, re-detecting: ${cachedPath}`);
+                    await context.globalState.update(`${fileType}Path`, undefined);
+                }
+            }
+
             if (!context.globalState.get(`${fileType}Path`)) {
                 const found = await SyncController.findConfigFile(fileType, logger);
                 if (found) {
@@ -58,6 +69,25 @@ export default class SyncController {
             }
         }
         return new SyncController(logger, context);
+    }
+
+    /** Kiểm tra đường dẫn cache có còn hợp lệ không (file tồn tại + đúng thư mục Antigravity IDE) */
+    private static async isPathStale(cachedPath: string, logger: Logger): Promise<boolean> {
+        // Phát hiện đường dẫn thuộc thư mục "Antigravity" cũ (không phải "Antigravity IDE")
+        const normalizedPath = cachedPath.replace(/\\/g, "/");
+        if (/\/Antigravity\/User\//i.test(normalizedPath) && !/\/Antigravity IDE\/User\//i.test(normalizedPath)) {
+            logger.info(`Path belongs to legacy Antigravity (not Antigravity IDE): ${cachedPath}`);
+            return true;
+        }
+
+        // Kiểm tra file có tồn tại không
+        try {
+            await workspace.fs.stat(Uri.file(cachedPath));
+            return false;
+        } catch {
+            logger.info(`Cached file no longer exists: ${cachedPath}`);
+            return true;
+        }
     }
 
     /** Try multiple possible paths to find config file */
