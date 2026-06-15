@@ -68,6 +68,37 @@ export default class SyncController {
                 }
             }
         }
+
+        // Validate: settingsPath và keybindingsPath không được trỏ cùng 1 file
+        const settingsPath = context.globalState.get<string>("settingsPath");
+        const keybindingsPath = context.globalState.get<string>("keybindingsPath");
+        if (settingsPath && keybindingsPath && settingsPath === keybindingsPath) {
+            logger.warn(`Settings and keybindings paths are identical: ${settingsPath} — re-detecting keybindings`);
+            await context.globalState.update("keybindingsPath", undefined);
+            const found = await SyncController.findConfigFile("keybindings", logger);
+            if (found) {
+                await context.globalState.update("keybindingsPath", found);
+                logger.info(`Re-detected keybindings.json: ${found}`);
+            } else {
+                logger.error(
+                    "Cannot find keybindings.json — opening file picker",
+                    "SyncController.initialize",
+                    true
+                );
+                try {
+                    const manualPath = await SyncController.setManualPath("keybindings");
+                    await context.globalState.update("keybindingsPath", manualPath);
+                } catch {
+                    logger.error(
+                        "keybindings.json is required. Please reactivate the extension.",
+                        "SyncController.initialize",
+                        true
+                    );
+                    return undefined;
+                }
+            }
+        }
+
         return new SyncController(logger, context);
     }
 
@@ -77,6 +108,17 @@ export default class SyncController {
         const normalizedPath = cachedPath.replace(/\\/g, "/");
         if (/\/Antigravity\/User\//i.test(normalizedPath) && !/\/Antigravity IDE\/User\//i.test(normalizedPath)) {
             logger.info(`Path belongs to legacy Antigravity (not Antigravity IDE): ${cachedPath}`);
+            return true;
+        }
+
+        // Phát hiện đường dẫn cross-platform (VD: Windows path cache trên Linux)
+        const currentPlatform = os.platform();
+        if (currentPlatform !== "win32" && /^[A-Z]:\\/i.test(cachedPath)) {
+            logger.info(`Windows path detected on ${currentPlatform}: ${cachedPath}`);
+            return true;
+        }
+        if (currentPlatform === "win32" && cachedPath.startsWith("/")) {
+            logger.info(`Unix path detected on Windows: ${cachedPath}`);
             return true;
         }
 
@@ -90,20 +132,35 @@ export default class SyncController {
         }
     }
 
-    /** Try multiple possible paths to find config file */
+    /** Try multiple possible paths to find config file — auto-creates at default path if missing */
     private static async findConfigFile(
         file: "settings" | "keybindings",
         logger: Logger
     ): Promise<string | null> {
         const candidates = SyncController.getConfigPaths(`${file}.json`);
-        for (const path of candidates) {
+        for (const candidatePath of candidates) {
             try {
-                await workspace.fs.stat(Uri.file(path));
-                return path;
+                await workspace.fs.stat(Uri.file(candidatePath));
+                return candidatePath;
             } catch {
-                logger.info(`Not found: ${path}`);
+                logger.info(`Not found: ${candidatePath}`);
             }
         }
+
+        // Auto-create at first candidate path instead of requiring manual file picker
+        if (candidates.length > 0) {
+            const defaultPath = candidates[0];
+            try {
+                const defaultContent = file === "settings" ? "{}" : "[]";
+                await mkdir(path.dirname(defaultPath), { recursive: true });
+                await writeFile(defaultPath, defaultContent);
+                logger.info(`Created default ${file}.json at: ${defaultPath}`);
+                return defaultPath;
+            } catch (err) {
+                logger.error(`Failed to create default ${file}.json`, "findConfigFile", false, err);
+            }
+        }
+
         return null;
     }
 

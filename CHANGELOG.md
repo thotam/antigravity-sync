@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.7.3] - 2026-06-15
+
+### Fixed
+- **Config Path Collision** — Fixed a critical bug where `keybindingsPath` could be cached as the same file as `settingsPath`, causing keybindings data to overwrite settings when pulling a profile
+- **Cross-Platform Path Detection** — Added detection for Windows paths cached on Linux (and vice versa), automatically invalidating stale paths when switching operating systems
+- **Auto-Create Missing Config Files** — Config files (`settings.json`, `keybindings.json`) are now automatically created at the default path if they don't exist, instead of opening a file picker (which could lead to selecting the wrong file)
+
 ## [0.7.2] - 2026-05-23
 
 ### Fixed

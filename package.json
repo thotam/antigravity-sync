@@ -2,7 +2,7 @@
     "name": "antigravity-sync",
     "displayName": "Antigravity Sync",
     "description": "Sync your Antigravity settings, extensions, keybindings, and snippets across devices using Google Drive",
-    "version": "0.7.2",
+    "version": "0.7.3",
     "publisher": "thotam",
     "icon": "images/icon.png",
     "license": "MIT",
