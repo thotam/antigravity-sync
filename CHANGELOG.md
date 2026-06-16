@@ -1,5 +1,10 @@
 # Changelog
 
+## [0.7.4] - 2026-06-16
+
+### Fixed
+- **Build Credentials** — Re-published to ensure Google OAuth credentials are correctly embedded in the package
+
 ## [0.7.3] - 2026-06-15
 
 ### Fixed
